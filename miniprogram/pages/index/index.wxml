@@ -1,0 +1,311 @@
+<!-- pages/index/index.wxml -->
+<view class="container">
+  <!-- 顶部状态栏与打印机信息 -->
+  <view class="card server-card">
+    <view class="server-info-row">
+      <view class="server-icon-wrap">
+        <text class="server-icon">🖨️</text>
+      </view>
+      <view class="server-details">
+        <view class="server-url-title">{{serverUrl}}</view>
+        <view class="server-status-line">
+          <text class="status-indicator {{serverConnected ? 'dot-online' : 'dot-offline'}}"></text>
+          <text class="status-text {{serverConnected ? 'text-online' : 'text-offline'}}">
+            {{checkingServer ? '正在检测连通性...' : (serverConnected ? '局域网在线可用' : '离线未连通')}}
+          </text>
+        </view>
+      </view>
+      <view class="server-actions">
+        <button class="server-action-btn edit-btn" bindtap="openEditModal" size="mini">修改</button>
+        <button class="server-action-btn refresh-btn" bindtap="checkServerConnection" size="mini">刷新</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 文件选择入口区域 -->
+  <view class="card file-card">
+    <view class="card-title-row">
+      <text class="card-title">📁 选择待打印文件（支持多选）</text>
+      <text class="count-badge" wx:if="{{selectedFiles.length > 0}}">已选 {{selectedFiles.length}} 个</text>
+    </view>
+
+    <!-- 4个核心选择入口（微信文档、微信图片、手机相册、压缩包） -->
+    <view class="action-grid-2x2">
+      <!-- 1. 微信文档 -->
+      <view class="action-btn-grid btn-doc-theme" bindtap="chooseChatDoc">
+        <view class="btn-icon-grid">📄</view>
+        <view class="btn-text-wrap">
+          <text class="btn-grid-title">微信文档</text>
+          <text class="btn-grid-sub">Word/PDF/PPT多选</text>
+        </view>
+      </view>
+
+      <!-- 2. 微信图片 -->
+      <view class="action-btn-grid btn-wechat-img-theme" bindtap="chooseChatImage">
+        <view class="btn-icon-grid">🖼️</view>
+        <view class="btn-text-wrap">
+          <text class="btn-grid-title">微信图片</text>
+          <text class="btn-grid-sub">聊天收发照片多选</text>
+        </view>
+      </view>
+
+      <!-- 3. 手机相册 -->
+      <view class="action-btn-grid btn-img-theme" bindtap="chooseLocalImage">
+        <view class="btn-icon-grid">📷</view>
+        <view class="btn-text-wrap">
+          <text class="btn-grid-title">手机相册</text>
+          <text class="btn-grid-sub">相册多选/拍照</text>
+        </view>
+      </view>
+
+      <!-- 4. 压缩包 -->
+      <view class="action-btn-grid btn-zip-theme" bindtap="chooseChatArchive">
+        <view class="btn-icon-grid">📦</view>
+        <view class="btn-text-wrap">
+          <text class="btn-grid-title">压缩包</text>
+          <text class="btn-grid-sub">解压并挑选文件</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- QQ / 手机下载文件引导栏 -->
+    <view class="qq-guide-bar" bindtap="openQqGuideModal">
+      <view class="qq-guide-left">
+        <text class="qq-guide-icon">🐧</text>
+        <text class="qq-guide-text">如何打印 QQ、钉钉或手机下载的文件？</text>
+      </view>
+      <text class="qq-guide-arrow">查看指引 ›</text>
+    </view>
+  </view>
+
+  <!-- 待打印清单卡片（每个文档单独设置） -->
+  <view class="card print-list-card" wx:if="{{selectedFiles.length > 0}}">
+    <view class="list-header-row">
+      <view class="list-title-wrap">
+        <text class="card-title">🖨️ 待打印清单</text>
+        <text class="list-count-tag">共 {{selectedFiles.length}} 个文档</text>
+      </view>
+      <text class="clear-all-text" bindtap="clearAllFiles">清空全部</text>
+    </view>
+
+    <!-- 批量统一快捷操作栏 -->
+    <view class="batch-bar">
+      <text class="batch-label">一键统一设为:</text>
+      <view class="batch-actions">
+        <text class="batch-pill" bindtap="applyBatchPrintType" data-type="two-sided-long-edge">全长边双面</text>
+        <text class="batch-pill" bindtap="applyBatchPrintType" data-type="two-sided-short-edge">全短边双面</text>
+        <text class="batch-pill" bindtap="applyBatchPrintType" data-type="one-sided">全单面</text>
+      </view>
+    </view>
+
+    <!-- 文档列表（每个文档独立设置参数） -->
+    <view class="doc-list">
+      <view class="doc-item-card" wx:for="{{selectedFiles}}" wx:key="id">
+        <!-- 文件头部：图标、名称、大小、删除 -->
+        <view class="doc-item-header">
+          <text class="doc-icon">{{item.icon}}</text>
+          <view class="doc-title-meta">
+            <text class="doc-filename">{{item.name}}</text>
+            <text class="doc-size">{{item.sizeText}}</text>
+          </view>
+          <view class="doc-remove-btn" data-index="{{index}}" bindtap="removeFile">✕</view>
+        </view>
+
+        <!-- 文件独立参数配置 -->
+        <view class="doc-item-settings">
+          <!-- 双面设置 -->
+          <view class="doc-setting-line">
+            <text class="doc-setting-label">双面:</text>
+            <view class="mode-capsules">
+              <text class="mode-pill {{item.printType === 'two-sided-long-edge' ? 'mode-pill-active' : ''}}" 
+                    data-index="{{index}}" data-type="two-sided-long-edge" bindtap="setFilePrintType">长边(左右)</text>
+              <text class="mode-pill {{item.printType === 'two-sided-short-edge' ? 'mode-pill-active' : ''}}" 
+                    data-index="{{index}}" data-type="two-sided-short-edge" bindtap="setFilePrintType">短边(上下)</text>
+              <text class="mode-pill {{item.printType === 'one-sided' ? 'mode-pill-active' : ''}}" 
+                    data-index="{{index}}" data-type="one-sided" bindtap="setFilePrintType">单面</text>
+            </view>
+          </view>
+
+          <!-- 份数与页码一行 -->
+          <view class="doc-setting-row2">
+            <!-- 份数 -->
+            <view class="doc-copies-wrap">
+              <text class="doc-setting-label">份数:</text>
+              <view class="doc-stepper">
+                <text class="step-btn" data-index="{{index}}" bindtap="decFileCopies">-</text>
+                <text class="step-val">{{item.copies}}</text>
+                <text class="step-btn" data-index="{{index}}" bindtap="incFileCopies">+</text>
+              </view>
+            </view>
+
+            <!-- 页码范围 -->
+            <view class="doc-pages-wrap">
+              <text class="doc-setting-label">页码:</text>
+              <input class="doc-pages-input" value="{{item.pageRanges}}" 
+                     data-index="{{index}}" bindinput="onFilePageRangesInput" 
+                     placeholder="全部，或如 1-5" />
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 提交全部大按钮 -->
+    <button class="print-submit-btn" type="primary" loading="{{uploading}}" disabled="{{uploading}}" bindtap="submitAllFilesPrint">
+      {{uploading ? '正在批量提交打印中...' : ('🚀 一键开始打印全部文档 (共 ' + selectedFiles.length + ' 个)')}}
+    </button>
+  </view>
+
+  <!-- 打印历史（按天折叠显示，今天默认展开） -->
+  <view class="card history-card">
+    <view class="card-title-row">
+      <view class="history-title-wrap">
+        <text class="card-title">📜 打印历史</text>
+        <text class="history-total-tag" wx:if="{{totalHistoryCount > 0}}">累计 {{totalHistoryCount}} 条</text>
+      </view>
+      <text class="refresh-text" bindtap="fetchHistory">🔄 刷新</text>
+    </view>
+    
+    <block wx:if="{{dateGroups.length > 0}}">
+      <view class="date-group-container">
+        <!-- 循环渲染每个日期分组 -->
+        <view class="date-group-block" wx:for="{{dateGroups}}" wx:key="title" wx:for-index="groupIndex">
+          <!-- 分组头部栏（点击切换折叠状态） -->
+          <view class="group-header {{item.isToday ? 'header-today' : ''}}" data-index="{{groupIndex}}" bindtap="toggleDateGroup">
+            <view class="group-header-left">
+              <text class="group-icon">📅</text>
+              <text class="group-title">{{item.title}}</text>
+              <text class="group-count-badge">{{item.items.length}} 个任务</text>
+            </view>
+            <view class="group-header-right">
+              <text class="group-toggle-arrow">{{item.collapsed ? '展开 ▼' : '收起 ▲'}}</text>
+            </view>
+          </view>
+
+          <!-- 分组内部记录（展开时展示） -->
+          <view class="group-items-list" wx:if="{{!item.collapsed}}">
+            <view class="history-row-item" wx:for="{{item.items}}" wx:key="id" wx:for-item="rec">
+              <view class="history-meta">
+                <text class="history-name">{{rec.filename}}</text>
+                <view class="history-sub-line">
+                  <text class="history-time">{{rec.displayTime}}</text>
+                  <text class="history-pages">📃 {{rec.pages || 1}} 页</text>
+                  <text class="history-mode">{{rec.print_type === 'one-sided' ? '单面' : '双面'}}</text>
+                </view>
+              </view>
+              <text class="history-status-tag status-{{rec.status}}">
+                {{rec.status === 'printing' ? '正在打印' : (rec.status === 'completed' || rec.status === 'success' ? '打印完成' : (rec.status === 'pending' ? '排队中' : '失败'))}}
+              </text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </block>
+    <view wx:else class="empty-tip">暂无打印历史记录</view>
+  </view>
+
+  <!-- 压缩包内容挑选弹窗 -->
+  <view class="modal-mask" wx:if="{{showArchiveModal}}" bindtap="closeArchiveModal">
+    <view class="archive-dialog" catchtap="preventBubble">
+      <view class="archive-dialog-header">
+        <view class="archive-header-text">
+          <text class="archive-title">📦 压缩包文件清单</text>
+          <text class="archive-subtitle">请勾选需要打印的文件（已选 {{selectedArchiveCount}} 个）</text>
+        </view>
+        <view class="archive-select-all" bindtap="toggleSelectAllArchive">
+          {{isAllArchiveSelected ? '取消全选' : '全部勾选'}}
+        </view>
+      </view>
+
+      <!-- 可滚动的文件列表 -->
+      <scroll-view class="archive-file-scroll" scroll-y="true">
+        <block wx:if="{{archiveFiles.length > 0}}">
+          <view class="archive-file-item {{item.selected ? 'item-selected' : ''}}" 
+                wx:for="{{archiveFiles}}" wx:key="id" 
+                data-index="{{index}}" bindtap="toggleArchiveItem">
+            <checkbox checked="{{item.selected}}" color="#1890ff" />
+            <view class="archive-item-meta">
+              <text class="archive-item-name">{{item.filename}}</text>
+              <view class="archive-item-sub">
+                <text class="archive-item-size">{{item.size_text}}</text>
+                <text class="archive-item-pages">📃 约 {{item.pages || 1}} 页</text>
+              </view>
+            </view>
+          </view>
+        </block>
+        <view wx:else class="empty-tip">压缩包内未找到支持打印的有效文档</view>
+      </scroll-view>
+
+      <!-- 打印参数微调 -->
+      <view class="archive-setting-row">
+        <view class="archive-setting-item">
+          <text class="archive-setting-label">双面:</text>
+          <picker bindchange="onArchivePrintTypeChange" value="{{archivePrintTypeIndex}}" range="{{printTypeOptions}}">
+            <view class="picker-pill">{{printTypeOptions[archivePrintTypeIndex]}} ▾</view>
+          </picker>
+        </view>
+        <view class="archive-setting-item">
+          <text class="archive-setting-label">份数:</text>
+          <view class="mini-stepper">
+            <text class="mini-btn" bindtap="decArchiveCopies">-</text>
+            <text class="mini-val">{{archiveCopies}}</text>
+            <text class="mini-btn" bindtap="incArchiveCopies">+</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 底部动作按钮 -->
+      <view class="archive-dialog-footer">
+        <button class="dialog-cancel-btn" bindtap="closeArchiveModal">取消</button>
+        <button class="dialog-print-btn" type="primary" loading="{{uploading}}" disabled="{{selectedArchiveCount === 0 || uploading}}" bindtap="submitSelectedArchiveFiles">
+          🚀 打印选中文件 ({{selectedArchiveCount}})
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 修改服务器地址弹窗 -->
+  <view class="modal-mask" wx:if="{{showEditModal}}" bindtap="closeEditModal">
+    <view class="modal-dialog" catchtap="preventBubble">
+      <view class="modal-title">⚙️ 修改打印机地址</view>
+      <view class="modal-desc">请输入打印服务所在的局域网 IP 与端口</view>
+      
+      <input class="modal-input" value="{{tempServerUrl}}" bindinput="onTempUrlInput" placeholder="http://192.168.10.66:5005" />
+      
+      <view class="modal-reset-link" bindtap="resetToDefaultUrl">
+        <text>恢复默认: http://192.168.10.66:5005</text>
+      </view>
+
+      <view class="modal-btn-row">
+        <button class="modal-btn cancel-btn" bindtap="closeEditModal">取消</button>
+        <button class="modal-btn confirm-btn" type="primary" bindtap="saveServerUrl">确认保存</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- QQ与本地文件打印指引弹窗 -->
+  <view class="modal-mask" wx:if="{{showQqGuideModal}}" bindtap="closeQqGuideModal">
+    <view class="guide-dialog" catchtap="preventBubble">
+      <view class="guide-title">💡 如何打印 QQ 或手机本地文件？</view>
+      <view class="guide-content">
+        <view class="guide-step-card">
+          <view class="guide-step-tag">方法 1：最推荐（无需安装任何软件）</view>
+          <text class="guide-step-text">1. 在 QQ 或钉钉中点击打开要打印的文件</text>
+          <text class="guide-step-text">2. 点击右上角【...】选择【用其他应用打开】</text>
+          <text class="guide-step-text">3. 选择【发送给微信】，发给【文件传输助手】</text>
+          <text class="guide-step-text">4. 回到本小程序点击【多选文档】，即可秒选打印！</text>
+        </view>
+
+        <view class="guide-step-card" style="margin-top: 16rpx;">
+          <view class="guide-step-tag">方法 2：手机浏览器直连（支持访问系统文件）</view>
+          <text class="guide-step-text">手机连接同一 Wi-Fi，打开自带浏览器直接访问打印机后台，可直接唤起手机系统文件管理器。</text>
+          <button class="copy-url-btn" size="mini" bindtap="copyWebUrl">
+            📋 复制网页地址 ({{serverUrl}})
+          </button>
+        </view>
+      </view>
+
+      <button class="guide-close-btn" type="primary" bindtap="closeQqGuideModal">我知道了</button>
+    </view>
+  </view>
+</view>

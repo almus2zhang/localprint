@@ -1,0 +1,13 @@
+[Unit]
+Description=File Monitor and Print Management System
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=/root/docker/lp/start_mon.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

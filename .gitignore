@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv/
+
+# Logs and databases
+*.log
+*.db
+print_history.db
+
+# Runtime directories
+uploads/
+converted/
+extracted/
+inspect_*
+
+# Operating System
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# WeChat Mini Program Developer Tools
+miniprogram/project.private.config.json
+miniprogram/.vscode/

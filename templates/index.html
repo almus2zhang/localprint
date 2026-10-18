@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动打印系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .card h2 {
+            color: #4a5568;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .file-list,
+        .history-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .date-group {
+            margin-bottom: 1rem;
+        }
+
+        .date-header {
+            background: #f7fafc;
+            padding: 0.75rem 1rem;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 4px solid #4299e1;
+        }
+
+        .date-header:hover {
+            background: #edf2f7;
+        }
+
+        .date-title {
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .date-count {
+            background: #4299e1;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+        }
+
+        .date-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .date-content {
+            padding-left: 1rem;
+        }
+
+        .file-item,
+        .history-item {
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .file-info,
+        .history-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .file-path {
+            font-size: 0.85rem;
+            color: #718096;
+            margin-top: 0.25rem;
+        }
+
+        .history-time {
+            font-size: 0.85rem;
+            color: #718096;
+        }
+
+        .file-type {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+
+        .file-type.printable {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .file-type.convertible {
+            background: #feebcb;
+            color: #744210;
+        }
+
+        .print-type {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+
+        .print-type.single {
+            background: #e6fffa;
+            color: #234e52;
+        }
+
+        .print-type.short {
+            background: #ebf8ff;
+            color: #2c5aa0;
+        }
+
+        .print-type.long {
+            background: #faf5ff;
+            color: #553c9a;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 15px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status.failed {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .status.pending {
+            background: #feebcb;
+            color: #744210;
+        }
+
+        .status.cancelled {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-left: 0.5rem;
+        }
+
+        .btn-primary {
+            background: #4299e1;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3182ce;
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+        }
+
+        .btn-danger {
+            background: #e53e3e;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+        }
+
+        .btn-batch {
+            background: #9f7aea;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        .btn-batch:hover {
+            background: #805ad5;
+        }
+
+        .btn-date {
+            background: #4299e1;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-date:hover {
+            background: #3182ce;
+        }
+
+        .btn-clear {
+            background: #e53e3e;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-clear:hover {
+            background: #c53030;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .modal-icon {
+            font-size: 1.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .modal-message {
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+            color: #4a5568;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 5px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .refresh-btn {
+            background: #ed8936;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 1rem;
+        }
+
+        .refresh-btn:hover {
+            background: #dd6b20;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            border-bottom-color: #4299e1;
+            color: #4299e1;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .collapse-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .checkbox {
+            margin-right: 0.75rem;
+        }
+
+        .select-all {
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .select-all label {
+            margin-left: 0.5rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .batch-actions {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .debug-info {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 1rem;
+            margin-top: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .debug-info h3 {
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+        }
+
+        .debug-info pre {
+            background: #edf2f7;
+            padding: 0.75rem;
+            border-radius: 3px;
+            overflow-x: auto;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📄 打印系统</h1>
+            <p>监控目录变化，自动转换为PDF</p>
+        </header>
+
+        <button class="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
+
+        <div class="card">
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('files')">📂 文件列表</div>
+                <div class="tab" onclick="switchTab('printable')">📂 可打印列表</div>
+                <div class="tab" onclick="switchTab('printHistory')">📋 打印历史</div>
+                <div class="tab" onclick="switchTab('conversion')">🔄 转换历史</div>
+                <div class="tab" onclick="switchTab('queue')">⏳ 打印队列</div>
+                <div class="tab" onclick="switchTab('debug')">🐛 调试信息</div>
+            </div>
+
+            <!-- 可处理文件 -->
+            <div id="filesTab" class="tab-content active">
+                <div class="batch-actions">
+                    <button class="btn btn-batch" onclick="batchPrintSelected('files')">🖨️ 批量打印选中文件</button>
+                </div>
+                <div class="select-all">
+                    <input type="checkbox" id="selectAllFiles" onchange="toggleSelectAll('files')">
+                    <label for="selectAllFiles">全选当前页</label>
+                </div>
+                <div class="file-list" id="fileList">
+                    {% for date, files in files_by_date.items() %}
+                    <div class="date-group">
+                        <div class="date-header" onclick="toggleDateGroup(this)">
+                            <div class="date-title">
+                                <span class="collapse-icon">▼</span>
+                                {{ date }}
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="date-count">{{ files|length }} 项</div>
+                                <div class="date-actions">
+                                    <button class="btn-date"
+                                        onclick="event.stopPropagation(); selectDateFiles(this, '{{ date }}', 'files')">选择本日</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="date-content" style="display: {{ 'block' if date == '今天' else 'none' }};">
+                            {% for file in files %}
+                            <div class="file-item">
+                                <input type="checkbox" class="checkbox file-checkbox" data-file-path="{{ file.path }}"
+                                    onchange="updateSelectAllState()">
+                                <div class="file-info">
+                                    <div class="file-name">{{ file.name }}</div>
+                                    <div class="file-path">{{ file.path }}</div>
+                                    <div class="file-meta">
+                                        大小: {{ (file.size / 1024 / 1024)|round(2) }} MB |
+                                        修改: {{ file.modified.strftime('%Y-%m-%d %H:%M') }} |
+                                        <span class="file-type {{ file.type }}">
+                                            {{ '直接打印' if file.type == 'printable' else '需转换' }}
+                                        </span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-success"
+                                    onclick="window.open('/api/view_file?path=' + encodeURIComponent('{{ file.path }}'), '_blank')">
+                                    预览
+                                </button>
+                                <button class="btn btn-primary"
+                                    onclick="showPrintModal('{{ file.path }}', '{{ file.name }}')">
+                                    打印
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 可打印列表 (原文件处理历史) -->
+            <div id="printableTab" class="tab-content">
+                <div class="batch-actions">
+                    <button class="btn btn-batch" onclick="batchPrintSelected('printable')">🖨️ 批量打印选中文件</button>
+                </div>
+                <div class="select-all">
+                    <input type="checkbox" id="selectAllPrintable" onchange="toggleSelectAll('printable')">
+                    <label for="selectAllPrintable">全选当前页</label>
+                </div>
+                <div class="file-list" id="printableList">
+                    {% for date, files in printable_files_by_date.items() %}
+                    <div class="date-group">
+                        <div class="date-header" onclick="toggleDateGroup(this)">
+                            <div class="date-title">
+                                <span class="collapse-icon">▼</span>
+                                {{ date }}
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="date-count">{{ files|length }} 项</div>
+                                <div class="date-actions">
+                                    <button class="btn-date"
+                                        onclick="event.stopPropagation(); selectDateFiles(this, '{{ date }}', 'printable')">选择本日</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="date-content" style="display: {{ 'block' if date == '今天' else 'none' }};">
+                            {% for file in files %}
+                            <div class="file-item">
+                                <input type="checkbox" class="checkbox printable-checkbox"
+                                    data-file-path="{{ file.path }}" onchange="updateSelectAllState()">
+                                <div class="file-info">
+                                    <div class="file-name">{{ file.name }}</div>
+                                    <div class="file-path">{{ file.path }}</div>
+                                    <div class="file-meta">
+                                        大小: {{ (file.size / 1024 / 1024)|round(2) }} MB |
+                                        修改: {{ file.modified.strftime('%Y-%m-%d %H:%M') }} |
+                                        <span class="file-type printable">
+                                            可打印
+                                        </span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-success"
+                                    onclick="window.open('/api/view_file?path=' + encodeURIComponent('{{ file.path }}'), '_blank')">
+                                    预览
+                                </button>
+                                <button class="btn btn-primary"
+                                    onclick="showPrintModal('{{ file.path }}', '{{ file.name }}')">
+                                    打印
+                                </button>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 打印历史 -->
+            <div id="printHistoryTab" class="tab-content">
+                <div class="batch-actions">
+                    <button class="btn btn-batch" onclick="batchPrintSelected('printHistory')">🖨️ 批量打印选中文件</button>
+                </div>
+                <div class="select-all">
+                    <input type="checkbox" id="selectAllPrintHistory" onchange="toggleSelectAll('printHistory')">
+                    <label for="selectAllPrintHistory">全选当前页</label>
+                </div>
+                <div class="history-list" id="printHistoryList">
+                    {% for date, records in history_by_date.items() %}
+                    <div class="date-group">
+                        <div class="date-header" onclick="toggleDateGroup(this)">
+                            <div class="date-title">
+                                <span class="collapse-icon">▼</span>
+                                {{ date }}
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div class="date-count">{{ records|length }} 项</div>
+                                <div class="date-actions">
+                                    <button class="btn-date"
+                                        onclick="event.stopPropagation(); selectDateFiles(this, '{{ date }}', 'printHistory')">选择本日</button>
+                                    <button class="btn-clear"
+                                        onclick="event.stopPropagation(); clearHistoryByDate('{{ date }}', 'printHistory')">清除本日</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="date-content" style="display: {{ 'block' if date == '今天' else 'none' }};">
+                            {% for record in records %}
+                            <div class="history-item">
+                                <input type="checkbox" class="checkbox history-checkbox print-history-checkbox"
+                                    data-file-path="{{ record[2] }}" onchange="updateSelectAllState()">
+                                <div class="history-info">
+                                    <div class="file-name">{{ record[1] }}</div>
+                                    <div class="file-path">{{ record[2] }}</div>
+                                    <div class="history-time">
+                                        {{ record[3] }} |
+                                        <span
+                                            class="print-type {{ 'single' if record[5] == 'one-sided' else 'short' if record[5] == 'two-sided-short-edge' else 'long' }}">
+                                            {{ '单面' if record[5] == 'one-sided' else '短边双面' if record[5] ==
+                                            'two-sided-short-edge' else '长边双面' }}
+                                        </span>
+                                        <span class="status {{ record[6] }}">
+                                            {{ '成功' if record[6] == 'success' else '失败' if record[6] == 'failed' else
+                                            '等待中' }}
+                                        </span>
+                                        {% if record[8] %}
+                                        <div style="color: #e53e3e; font-size: 0.8rem; margin-top: 0.25rem;">
+                                            错误: {{ record[8] }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="btn btn-warning"
+                                        onclick="reprintFile('{{ record[2] }}', '{{ record[1] }}')">
+                                        再次打印
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 转换历史 -->
+            <div id="conversionTab" class="tab-content">
+                <div class="batch-actions">
+                    <button class="btn btn-danger" onclick="clearAllConversionHistory()">🗑️ 清除全部转换历史</button>
+                    <button class="btn btn-warning" onclick="cleanConvertedFiles()">🧹 清理旧转换文件</button>
+                </div>
+                <div class="history-list" id="conversionList">
+                    {% for record in conversion_history %}
+                    <div class="history-item">
+                        <div class="history-info">
+                            <div class="file-name">原文件: {{ record[1] }}</div>
+                            <div class="file-path">PDF文件: {{ record[2] }}</div>
+                            <div class="history-time">
+                                {{ record[3] }} |
+                                <span class="status {{ record[4] }}">
+                                    {{ '成功' if record[4] == 'success' else '失败' }}
+                                </span>
+                                {% if record[5] %}
+                                <div style="color: #e53e3e; font-size: 0.8rem; margin-top: 0.25rem;">
+                                    错误: {{ record[5] }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- 打印队列 -->
+            <div id="queueTab" class="tab-content">
+                <div class="batch-actions">
+                    <button class="btn btn-batch" onclick="batchPrintSelected('queue')">🖨️ 批量打印选中文件</button>
+                    <button class="btn btn-danger" onclick="cancelAllPrints()">🚫 取消所有打印</button>
+                    <button class="btn btn-danger" onclick="clearPrintQueue()">🗑️ 清空打印队列</button>
+                </div>
+                <div class="select-all">
+                    <input type="checkbox" id="selectAllQueue" onchange="toggleSelectAll('queue')">
+                    <label for="selectAllQueue">全选当前页</label>
+                </div>
+                <div class="history-list" id="queueList">
+                    <!-- 打印队列内容将通过JavaScript加载 -->
+                </div>
+            </div>
+
+            <!-- 调试信息 -->
+            <div id="debugTab" class="tab-content">
+                <div class="batch-actions">
+                    <button class="btn" onclick="loadDebugInfo()">🔄 刷新调试信息</button>
+                </div>
+                <div class="debug-info">
+                    <h3>打印队列调试信息</h3>
+                    <pre id="debugInfoContent">点击"刷新调试信息"按钮加载数据...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 打印模态框 -->
+    <div class="modal" id="printModal">
+        <div class="modal-content">
+            <h2>🖨️ 打印设置</h2>
+            <div class="form-group">
+                <label for="printType">打印方式:</label>
+                <select id="printType">
+                    <option value="one-sided">单面打印</option>
+                    <option value="two-sided-short-edge" selected>双面打印 - 短边翻页</option>
+                    <option value="two-sided-long-edge">双面打印 - 长边翻页</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="pageRanges">打印页码 (可选):</label>
+                <input type="text" id="pageRanges" placeholder="例如: 1-4,7,9-12 (留空打印全部)" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e0; border-radius: 5px;">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="hidePrintModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitPrint()">开始打印</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量打印模态框 -->
+    <div class="modal" id="batchPrintModal">
+        <div class="modal-content">
+            <h2>🖨️ 批量打印设置</h2>
+            <div class="form-group">
+                <label for="batchPrintType">打印方式:</label>
+                <select id="batchPrintType">
+                    <option value="one-sided">单面打印</option>
+                    <option value="two-sided-short-edge" selected>双面打印 - 短边翻页</option>
+                    <option value="two-sided-long-edge">双面打印 - 长边翻页</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="batchPageRanges">打印页码 (可选):</label>
+                <input type="text" id="batchPageRanges" placeholder="例如: 1-4,7,9-12 (留空打印全部)" style="width: 100%; padding: 0.5rem; border: 1px solid #cbd5e0; border-radius: 5px;">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" onclick="hideBatchPrintModal()">取消</button>
+                <button class="btn btn-primary" onclick="submitBatchPrint()">开始批量打印</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认清除模态框 -->
+    <div class="modal" id="confirmClearModal">
+        <div class="modal-content">
+            <h2>⚠️ 确认清除</h2>
+            <p id="clearConfirmMessage">您确定要清除这些记录吗？此操作不可撤销。</p>
+            <div class="modal-buttons">
+                <button class="btn" onclick="hideConfirmClearModal()">取消</button>
+                <button class="btn btn-danger" id="confirmClearButton">确认清除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示模态框 -->
+    <div class="modal" id="messageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-icon" id="messageIcon">💡</span>
+                <div class="modal-title" id="messageTitle">提示</div>
+            </div>
+            <div class="modal-message" id="messageContent">这是一条消息</div>
+            <div class="modal-buttons">
+                <button class="btn btn-primary" onclick="hideMessageModal()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('Connected to server');
+        });
+
+        socket.on('file_updated', (data) => {
+            console.log('File updated:', data);
+            showMessage('新文件检测', `检测到新文件: ${data.filename}`, 'info');
+            // 简单的策略：自动刷新页面以显示新文件
+            // 为了用户体验，可以给一个倒计时或者直接刷新
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        });
+
+        socket.on('conversion_complete', (data) => {
+            console.log('Conversion complete:', data);
+            showMessage('转换完成', `文件 ${data.original} 已成功转换为 ${data.filename}`, 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        });
+
+        let currentFile = null;
+        let currentFileName = null;
+        let selectedFiles = [];
+        let currentTab = 'files';
+        let pendingClearAction = null;
+
+        function showPrintModal(filePath, fileName) {
+            currentFile = filePath;
+            currentFileName = fileName;
+            document.getElementById('printModal').style.display = 'flex';
+        }
+
+        function hidePrintModal() {
+            document.getElementById('printModal').style.display = 'none';
+        }
+
+        function showBatchPrintModal() {
+            document.getElementById('batchPrintModal').style.display = 'flex';
+        }
+
+        function hideBatchPrintModal() {
+            document.getElementById('batchPrintModal').style.display = 'none';
+        }
+
+        function showConfirmClearModal(message, confirmCallback) {
+            document.getElementById('clearConfirmMessage').textContent = message;
+            document.getElementById('confirmClearModal').style.display = 'flex';
+
+            // 设置确认按钮的点击事件
+            const confirmButton = document.getElementById('confirmClearButton');
+            confirmButton.onclick = confirmCallback;
+        }
+
+        function hideConfirmClearModal() {
+            document.getElementById('confirmClearModal').style.display = 'none';
+            pendingClearAction = null;
+        }
+
+        // 显示消息模态框
+        function showMessageModal(message, title = '提示', icon = '💡') {
+            document.getElementById('messageTitle').textContent = title;
+            document.getElementById('messageContent').textContent = message;
+            document.getElementById('messageIcon').textContent = icon;
+            document.getElementById('messageModal').style.display = 'flex';
+        }
+
+        // 隐藏消息模态框
+        function hideMessageModal() {
+            document.getElementById('messageModal').style.display = 'none';
+        }
+
+        function submitPrint() {
+            const printType = document.getElementById('printType').value;
+            const pageRanges = document.getElementById('pageRanges') ? document.getElementById('pageRanges').value : '';
+
+            fetch('/api/print', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    file_path: currentFile,
+                    print_type: printType,
+                    page_ranges: pageRanges
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showMessageModal('打印任务已提交！', '成功', '✅');
+                        hidePrintModal();
+                        refreshData();
+                    } else {
+                        showMessageModal('打印任务提交失败: ' + data.message, '错误', '❌');
+                    }
+                })
+                .catch(error => {
+                    showMessageModal('请求失败: ' + error, '错误', '❌');
+                });
+        }
+
+        function submitBatchPrint() {
+            const printType = document.getElementById('batchPrintType').value;
+            const pageRanges = document.getElementById('batchPageRanges') ? document.getElementById('batchPageRanges').value : '';
+            const filePaths = getSelectedFiles();
+
+            if (filePaths.length === 0) {
+                showMessageModal('请先选择要打印的文件', '提示', '💡');
+                return;
+            }
+
+            fetch('/api/print_multiple', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    file_paths: filePaths,
+                    print_type: printType,
+                    page_ranges: pageRanges
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const message = `批量打印任务已提交！\n成功: ${data.success_count} 个文件${data.failed_count > 0 ? `, 失败: ${data.failed_count} 个文件` : ''}`;
+                        showMessageModal(message, '成功', '✅');
+                        hideBatchPrintModal();
+                        clearSelection();
+                        refreshData();
+                    } else {
+                        showMessageModal('批量打印任务提交失败: ' + data.message, '错误', '❌');
+                    }
+                })
+                .catch(error => {
+                    showMessageModal('请求失败: ' + error, '错误', '❌');
+                });
+        }
+
+        function reprintFile(filePath, fileName) {
+            currentFile = filePath;
+            currentFileName = fileName;
+            showPrintModal(filePath, fileName);
+        }
+
+        function toggleDateGroup(header) {
+            const content = header.nextElementSibling;
+            const isCollapsed = content.style.display === 'none';
+
+            if (isCollapsed) {
+                content.style.display = 'block';
+                header.classList.remove('collapsed');
+            } else {
+                content.style.display = 'none';
+                header.classList.add('collapsed');
+            }
+        }
+
+        function getSelectedFiles() {
+            const filePaths = [];
+            // 根据当前标签页获取对应的复选框
+            let checkboxes;
+
+            if (currentTab === 'files') {
+                checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            } else if (currentTab === 'printable') {
+                checkboxes = document.querySelectorAll('.printable-checkbox:checked');
+            } else if (currentTab === 'printHistory') {
+                checkboxes = document.querySelectorAll('.print-history-checkbox:checked');
+            } else if (currentTab === 'queue') {
+                checkboxes = document.querySelectorAll('.queue-checkbox:checked');
+            } else {
+                checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            }
+
+            checkboxes.forEach(checkbox => {
+                filePaths.push(checkbox.getAttribute('data-file-path'));
+            });
+
+            return filePaths;
+        }
+
+        function batchPrintSelected(type) {
+            currentTab = type;
+            const filePaths = getSelectedFiles();
+            if (filePaths.length === 0) {
+                showMessageModal('请先选择要打印的文件', '提示', '💡');
+                return;
+            }
+            showBatchPrintModal();
+        }
+
+        function toggleSelectAll(type) {
+            let checkboxes;
+            let selectAllCheckbox;
+
+            if (type === 'files') {
+                checkboxes = document.querySelectorAll('.file-checkbox');
+                selectAllCheckbox = document.getElementById('selectAllFiles');
+            } else if (type === 'printable') {
+                checkboxes = document.querySelectorAll('.printable-checkbox');
+                selectAllCheckbox = document.getElementById('selectAllPrintable');
+            } else if (type === 'printHistory') {
+                checkboxes = document.querySelectorAll('.print-history-checkbox');
+                selectAllCheckbox = document.getElementById('selectAllPrintHistory');
+            } else if (type === 'queue') {
+                checkboxes = document.querySelectorAll('.queue-checkbox');
+                selectAllCheckbox = document.getElementById('selectAllQueue');
+            }
+
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+
+            updateSelectAllState();
+        }
+
+        function updateSelectAllState() {
+            // 更新全选复选框的状态
+            const fileCheckboxes = document.querySelectorAll('.file-checkbox');
+            const fileHistoryCheckboxes = document.querySelectorAll('.printable-checkbox');
+            const printHistoryCheckboxes = document.querySelectorAll('.print-history-checkbox');
+            const queueCheckboxes = document.querySelectorAll('.queue-checkbox');
+
+            const selectAllFiles = document.getElementById('selectAllFiles');
+            const selectAllFileHistory = document.getElementById('selectAllPrintable');
+            const selectAllPrintHistory = document.getElementById('selectAllPrintHistory');
+            const selectAllQueue = document.getElementById('selectAllQueue');
+
+            if (fileCheckboxes.length > 0) {
+                const checkedFiles = document.querySelectorAll('.file-checkbox:checked').length;
+                selectAllFiles.checked = checkedFiles === fileCheckboxes.length;
+                selectAllFiles.indeterminate = checkedFiles > 0 && checkedFiles < fileCheckboxes.length;
+            }
+
+            if (fileHistoryCheckboxes.length > 0) {
+                const checkedFileHistory = document.querySelectorAll('.printable-checkbox:checked').length;
+                selectAllFileHistory.checked = checkedFileHistory === fileHistoryCheckboxes.length;
+                selectAllFileHistory.indeterminate = checkedFileHistory > 0 && checkedFileHistory < fileHistoryCheckboxes.length;
+            }
+
+            if (printHistoryCheckboxes.length > 0) {
+                const checkedPrintHistory = document.querySelectorAll('.print-history-checkbox:checked').length;
+                selectAllPrintHistory.checked = checkedPrintHistory === printHistoryCheckboxes.length;
+                selectAllPrintHistory.indeterminate = checkedPrintHistory > 0 && checkedPrintHistory < printHistoryCheckboxes.length;
+            }
+
+            if (queueCheckboxes.length > 0) {
+                const checkedQueue = document.querySelectorAll('.queue-checkbox:checked').length;
+                selectAllQueue.checked = checkedQueue === queueCheckboxes.length;
+                selectAllQueue.indeterminate = checkedQueue > 0 && checkedQueue < queueCheckboxes.length;
+            }
+        }
+
+        function clearSelection() {
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateSelectAllState();
+        }
+
+        function switchTab(tabName) {
+            // 更新标签页状态
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            currentTab = tabName;
+
+            if (tabName === 'files') {
+                document.querySelector('.tab:nth-child(1)').classList.add('active');
+                document.getElementById('filesTab').classList.add('active');
+            } else if (tabName === 'printable') {
+                document.querySelector('.tab:nth-child(2)').classList.add('active');
+                document.getElementById('printableTab').classList.add('active');
+            } else if (tabName === 'printHistory') {
+                document.querySelector('.tab:nth-child(3)').classList.add('active');
+                document.getElementById('printHistoryTab').classList.add('active');
+            } else if (tabName === 'conversion') {
+                document.querySelector('.tab:nth-child(4)').classList.add('active');
+                document.getElementById('conversionTab').classList.add('active');
+            } else if (tabName === 'queue') {
+                document.querySelector('.tab:nth-child(5)').classList.add('active');
+                document.getElementById('queueTab').classList.add('active');
+                loadPrintQueue();
+            } else if (tabName === 'debug') {
+                document.querySelector('.tab:nth-child(6)').classList.add('active');
+                document.getElementById('debugTab').classList.add('active');
+                loadDebugInfo();
+            }
+        }
+
+        function loadPrintQueue() {
+            fetch('/api/queue')
+                .then(response => response.json())
+                .then(queue => {
+                    const queueList = document.getElementById('queueList');
+                    queueList.innerHTML = '';
+
+                    if (queue.length === 0) {
+                        queueList.innerHTML = `
+                            <div style="text-align: center; padding: 2rem; color: #718096;">
+                                <p>没有等待中的打印任务</p>
+                                <p style="font-size: 0.9rem; margin-top: 0.5rem;">
+                                    打印队列显示当前正在等待打印的文件。
+                                    如果您有文件正在打印但没有显示在这里，可以尝试刷新页面。
+                                </p>
+                                <button class="btn btn-danger" style="margin-top: 1rem;" onclick="cancelAllPrints()">
+                                    🚫 强制取消所有打印（包括系统队列）
+                                </button>
+                            </div>
+                        `;
+                        return;
+                    }
+
+                    queue.forEach(item => {
+                        const queueItem = document.createElement('div');
+                        queueItem.className = 'history-item';
+
+                        // 格式化时间
+                        let displayTime = '未知时间';
+                        if (item.added_time) {
+                            try {
+                                displayTime = new Date(item.added_time).toLocaleString();
+                            } catch (e) {
+                                displayTime = item.added_time;
+                            }
+                        }
+
+                        // 确定打印类型显示
+                        let printTypeDisplay = '未知';
+                        let printTypeClass = 'single';
+                        if (item.print_type === 'one-sided') {
+                            printTypeDisplay = '单面';
+                            printTypeClass = 'single';
+                        } else if (item.print_type === 'two-sided-short-edge') {
+                            printTypeDisplay = '短边双面';
+                            printTypeClass = 'short';
+                        } else if (item.print_type === 'two-sided-long-edge') {
+                            printTypeDisplay = '长边双面';
+                            printTypeClass = 'long';
+                        }
+
+                        queueItem.innerHTML = `
+                            <input type="checkbox" class="checkbox queue-checkbox" data-file-path="${item.filepath || ''}" onchange="updateSelectAllState()">
+                            <div class="history-info">
+                                <div class="file-name">${item.filename || '未知文件'}</div>
+                                <div class="file-path">${item.filepath || '路径不可用'}</div>
+                                <div class="history-time">
+                                    ${displayTime} | 
+                                    <span class="print-type ${printTypeClass}">
+                                        ${printTypeDisplay}
+                                    </span>
+                                    <span class="status ${item.status || 'pending'}">
+                                        ${item.status === 'pending' ? '等待中' :
+                                item.status === 'completed' ? '已完成' :
+                                    item.status === 'failed' ? '失败' :
+                                        item.status === 'cancelled' ? '已取消' : '未知'}
+                                    </span>
+                                </div>
+                            </div>
+                            <button class="btn btn-danger" onclick="cancelPrintJob('${item.id}')">
+                                取消打印
+                            </button>
+                        `;
+                        queueList.appendChild(queueItem);
+                    });
+                })
+                .catch(error => {
+                    const queueList = document.getElementById('queueList');
+                    queueList.innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: #e53e3e;">
+                            <p>获取打印队列时出错</p>
+                            <p style="font-size: 0.9rem; margin-top: 0.5rem;">错误: ${error}</p>
+                            <button class="btn" style="margin-top: 1rem;" onclick="loadPrintQueue()">
+                                重试
+                            </button>
+                        </div>
+                    `;
+                });
+        }
+
+        function loadDebugInfo() {
+            fetch('/api/debug/queue')
+                .then(response => response.json())
+                .then(data => {
+                    const debugContent = document.getElementById('debugInfoContent');
+                    debugContent.textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    const debugContent = document.getElementById('debugInfoContent');
+                    debugContent.textContent = '获取调试信息时出错: ' + error;
+                });
+        }
+
+        function refreshData() {
+            location.reload();
+        }
+
+        // 选择本日文件功能
+        function selectDateFiles(button, date, type) {
+            // 找到对应的日期组
+            const dateHeader = button.closest('.date-header');
+            const dateGroup = dateHeader.parentElement;
+            const dateContent = dateGroup.querySelector('.date-content');
+
+            // 获取该日期组下的所有复选框
+            let checkboxes;
+            if (type === 'files') {
+                checkboxes = dateContent.querySelectorAll('.file-checkbox');
+            } else if (type === 'printable') {
+                checkboxes = dateContent.querySelectorAll('.printable-checkbox');
+            } else if (type === 'printHistory') {
+                checkboxes = dateContent.querySelectorAll('.print-history-checkbox');
+            } else if (type === 'queue') {
+                checkboxes = dateContent.querySelectorAll('.queue-checkbox');
+            }
+
+            // 选中所有复选框
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+
+            // 更新全选状态
+            updateSelectAllState();
+
+            // 显示成功提示
+            showMessageModal(`已选择 ${date} 的所有文件 (${checkboxes.length} 个)`, '选择成功', '✅');
+        }
+
+        // 清除历史记录功能
+        function clearHistoryByDate(date, type) {
+            const message = `您确定要清除 ${date} 的所有${getHistoryTypeName(type)}记录吗？此操作不可撤销。`;
+
+            showConfirmClearModal(message, function () {
+                // 构建API端点
+                let endpoint = '';
+                if (type === 'fileHistory') {
+                    endpoint = '/api/clear_file_history';
+                } else if (type === 'printHistory') {
+                    endpoint = '/api/clear_print_history';
+                }
+
+                if (!endpoint) {
+                    showMessageModal('未知的历史记录类型', '错误', '❌');
+                    return;
+                }
+
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        date: date
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showMessageModal(`已成功清除 ${date} 的${getHistoryTypeName(type)}记录`, '成功', '✅');
+                            hideConfirmClearModal();
+                            refreshData();
+                        } else {
+                            showMessageModal('清除失败: ' + data.message, '错误', '❌');
+                        }
+                    })
+                    .catch(error => {
+                        showMessageModal('请求失败: ' + error, '错误', '❌');
+                    });
+            });
+        }
+        // 清理转换目录中的旧文件
+        function cleanConvertedFiles() {
+            showConfirmModal(
+                '清理转换文件',
+                '确定要清理转换目录中的旧文件吗？默认会保留最近7天的文件。',
+                function () {
+                    fetch('/api/clean_converted', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            days: 7  // 可以调整为其他天数
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showMessageModal('操作成功', data.message, 'success');
+                            } else {
+                                showMessageModal('操作失败', '清理失败: ' + data.message, 'error');
+                            }
+                        })
+                        .catch(error => {
+                            showMessageModal('请求失败', '请求失败: ' + error, 'error');
+                        });
+                },
+                '确认清理',
+                '取消'
+            );
+        }
+        // 清除全部转换历史
+        function clearAllConversionHistory() {
+            const message = '您确定要清除所有转换历史记录吗？此操作不可撤销。';
+
+            showConfirmClearModal(message, function () {
+                fetch('/api/clear_conversion_history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showMessageModal('已成功清除所有转换历史记录', '成功', '✅');
+                            hideConfirmClearModal();
+                            refreshData();
+                        } else {
+                            showMessageModal('清除失败: ' + data.message, '错误', '❌');
+                        }
+                    })
+                    .catch(error => {
+                        showMessageModal('请求失败: ' + error, '错误', '❌');
+                    });
+            });
+        }
+
+        // 清空打印队列
+        function clearPrintQueue() {
+            const message = '您确定要清空打印队列吗？此操作将取消所有等待中的打印任务。';
+
+            showConfirmClearModal(message, function () {
+                fetch('/api/clear_print_queue', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showMessageModal('已成功清空打印队列', '成功', '✅');
+                            hideConfirmClearModal();
+                            refreshData();
+                        } else {
+                            showMessageModal('清空失败: ' + data.message, '错误', '❌');
+                        }
+                    })
+                    .catch(error => {
+                        showMessageModal('请求失败: ' + error, '错误', '❌');
+                    });
+            });
+        }
+
+        // 取消所有打印作业
+        function cancelAllPrints() {
+            const message = '确定要取消所有打印作业吗？此操作不可撤销。';
+
+            showConfirmClearModal(message, function () {
+                fetch('/api/cancel_all_prints', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showMessageModal(data.message, '成功', '✅');
+                            refreshData();
+                        } else {
+                            showMessageModal('取消打印失败: ' + data.message, '错误', '❌');
+                        }
+                    })
+                    .catch(error => {
+                        showMessageModal('请求失败: ' + error, '错误', '❌');
+                    });
+            });
+        }
+
+        // 取消单个打印作业
+        function cancelPrintJob(jobId) {
+            const message = '确定要取消这个打印作业吗？';
+
+            showConfirmClearModal(message, function () {
+                fetch(`/api/cancel_print/${jobId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showMessageModal(data.message, '成功', '✅');
+                            refreshData();
+                        } else {
+                            showMessageModal('取消打印失败: ' + data.message, '错误', '❌');
+                        }
+                    })
+                    .catch(error => {
+                        showMessageModal('请求失败: ' + error, '错误', '❌');
+                    });
+            });
+        }
+
+        // 获取历史记录类型名称
+        function getHistoryTypeName(type) {
+            switch (type) {
+                case 'fileHistory': return '文件处理';
+                case 'printHistory': return '打印';
+                default: return '';
+            }
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('printModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hidePrintModal();
+            }
+        });
+
+        document.getElementById('batchPrintModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideBatchPrintModal();
+            }
+        });
+
+        document.getElementById('confirmClearModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideConfirmClearModal();
+            }
+        });
+
+        document.getElementById('messageModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                hideMessageModal();
+            }
+        });
+
+        // 页面加载完成后初始化 - 默认折叠非今天的日期组
+        document.addEventListener('DOMContentLoaded', function () {
+            // 默认只展开今天的日期组，其他折叠
+            document.querySelectorAll('.date-header').forEach(header => {
+                const dateTitle = header.querySelector('.date-title').textContent;
+                if (!dateTitle.includes('今天')) {
+                    header.classList.add('collapsed');
+                    header.nextElementSibling.style.display = 'none';
+                }
+            });
+        });
+
+        function showMessage(title, message, type = 'info') {
+            document.getElementById('messageTitle').innerText = title;
+            document.getElementById('messageContent').innerText = message;
+
+            const icon = document.getElementById('messageIcon');
+            if (type === 'success') {
+                icon.innerText = '✅';
+                icon.style.color = 'green';
+            } else if (type === 'error') {
+                icon.innerText = '❌';
+                icon.style.color = 'red';
+            } else {
+                icon.innerText = '💡';
+                icon.style.color = '#4299e1';
+            }
+
+            document.getElementById('messageModal').style.display = 'flex';
+
+            // Auto close after 3 seconds for non-error messages
+            if (type !== 'error') {
+                setTimeout(() => {
+                    hideMessageModal();
+                }, 3000);
+            }
+        }
+    </script>
+</body>
+
+</html>

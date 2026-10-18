@@ -1,0 +1,6 @@
+Flask>=2.0.0
+flask-socketio>=5.0.0
+eventlet>=0.33.0
+watchdog>=2.1.0
+pypdf>=3.0.0
+chardet>=4.0.0

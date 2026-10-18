@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文件管理与打印服务</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --accent-color: #e74c3c;
+            --light-color: #ecf0f1;
+            --dark-color: #2c3e50;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --border-radius: 6px;
+            --box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 20px 0;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            border: none;
+            border-radius: var(--border-radius);
+            width: 200px;
+        }
+
+        button {
+            padding: 10px 15px;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: var(--dark-color);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .file-list {
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+        }
+
+        .directory-tree {
+            list-style-type: none;
+            padding-left: 15px;
+        }
+
+        .directory-tree li {
+            margin-bottom: 8px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .directory-tree li:hover {
+            background-color: var(--light-color);
+        }
+
+        .directory-tree .active {
+            background-color: var(--light-color);
+            font-weight: bold;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: background-color 0.2s;
+        }
+
+        .file-item:hover {
+            background-color: var(--light-color);
+        }
+
+        .file-item.selected {
+            background-color: #e1f5fe;
+        }
+
+        .file-checkbox {
+            margin-right: 15px;
+        }
+
+        .file-icon {
+            margin-right: 15px;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .file-details {
+            flex-grow: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .file-meta {
+            display: flex;
+            gap: 15px;
+            font-size: 0.85rem;
+            color: #666;
+            flex-wrap: wrap;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .print-btn {
+            background-color: var(--accent-color);
+        }
+
+        .print-btn:hover {
+            background-color: #c0392b;
+        }
+
+        .printed-badge {
+            background-color: var(--success-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+        }
+
+        .print-options {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            display: none;
+            z-index: 1000;
+        }
+
+        .print-options.show {
+            display: block;
+        }
+
+        .print-options h3 {
+            margin-bottom: 15px;
+        }
+
+        .option-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .option-btn {
+            background-color: var(--light-color);
+            color: var(--dark-color);
+        }
+
+        .option-btn.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .cancel-btn {
+            background-color: #95a5a6;
+        }
+
+        .confirm-btn {
+            background-color: var(--success-color);
+        }
+
+        .mobile-warning {
+            display: none;
+            background-color: var(--warning-color);
+            color: white;
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+            border-radius: var(--border-radius);
+        }
+
+        .batch-actions {
+            display: none;
+            padding: 15px;
+            background-color: var(--light-color);
+            border-radius: var(--border-radius);
+            margin-bottom: 15px;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--box-shadow);
+        }
+
+        .batch-actions.show {
+            display: flex;
+        }
+
+        .selected-count {
+            font-weight: bold;
+        }
+
+        .last-printed {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .search-box {
+                width: 100%;
+            }
+            
+            input[type="text"] {
+                flex-grow: 1;
+            }
+            
+            .mobile-warning {
+                display: block;
+            }
+            
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .file-actions {
+                margin-top: 10px;
+                width: 100%;
+                justify-content: space-between;
+            }
+            
+            .option-group {
+                flex-direction: column;
+            }
+            
+            .batch-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .file-meta {
+                flex-direction: column;
+                gap: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <h1>文件管理与打印服务</h1>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="搜索文件...">
+                    <button id="searchBtn">搜索</button>
+                </div>
+            </div>
+        </header>
+        
+        <div class="mobile-warning">
+            提示：在移动设备上，长按文件可进行多选操作
+        </div>
+        
+        <!-- 批量操作栏 - 多选文件时会显示 -->
+        <div class="batch-actions" id="batchActions">
+            <div class="selected-count" id="selectedCount">已选择 0 个文件</div>
+            <div>
+                <button class="print-btn" id="batchPrintBtn">打印所选文件</button>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>目录</h2>
+                <ul class="directory-tree" id="directoryTree">
+                    <!-- 目录树将通过JavaScript动态生成 -->
+                </ul>
+            </div>
+            
+            <div class="file-list">
+                <h2>文件列表</h2>
+                <div id="fileListContainer">
+                    <!-- 文件列表将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="print-options" id="printOptions">
+            <h3>打印选项</h3>
+            <div class="option-group">
+                <button class="option-btn active" data-option="single">单面打印</button>
+                <button class="option-btn" data-option="long-edge">长边翻页双面打印</button>
+                <button class="option-btn" data-option="short-edge">短边翻页双面打印</button>
+            </div>
+            <div class="action-buttons">
+                <button class="cancel-btn" id="cancelPrint">取消</button>
+                <button class="confirm-btn" id="confirmPrint">确认打印</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 当前选中的文件和打印选项
+        let selectedFiles = [];
+        let currentPrintOption = "single";
+        let currentPath = "";
+        let currentSearch = "";
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDirectories();
+            loadFiles();
+            
+            // 事件监听器
+            document.getElementById('searchBtn').addEventListener('click', handleSearch);
+            document.getElementById('searchInput').addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') handleSearch();
+            });
+            
+            document.getElementById('cancelPrint').addEventListener('click', hidePrintOptions);
+            document.getElementById('confirmPrint').addEventListener('click', handlePrint);
+            document.getElementById('batchPrintBtn').addEventListener('click', handleBatchPrint);
+            
+            // 打印选项按钮
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentPrintOption = this.getAttribute('data-option');
+                });
+            });
+        });
+
+        // 加载目录结构
+        async function loadDirectories() {
+            try {
+                const response = await fetch('/api/directories');
+                const data = await response.json();
+                renderDirectoryTree(data.directories);
+            } catch (error) {
+                console.error('加载目录失败:', error);
+                document.getElementById('directoryTree').innerHTML = '<li>加载目录失败</li>';
+            }
+        }
+
+        // 加载文件列表
+        async function loadFiles(path = "", search = "") {
+            try {
+                let url = `/api/files`;
+                const params = new URLSearchParams();
+                
+                if (path) params.append('path', path);
+                if (search) params.append('search', search);
+                
+                if (params.toString()) url += `?${params.toString()}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.error) {
+                    document.getElementById('fileListContainer').innerHTML = `<p>错误: ${data.error}</p>`;
+                    return;
+                }
+                
+                currentPath = data.path;
+                renderFileList(data.files);
+            } catch (error) {
+                console.error('加载文件失败:', error);
+                document.getElementById('fileListContainer').innerHTML = '<p>加载文件失败，请检查后端服务是否运行</p>';
+            }
+        }
+
+        // 渲染目录树
+        function renderDirectoryTree(directories) {
+            const treeContainer = document.getElementById('directoryTree');
+            treeContainer.innerHTML = '';
+            
+            // 添加根目录
+            const rootItem = document.createElement('li');
+            rootItem.textContent = '全部文件';
+            rootItem.classList.add('active');
+            rootItem.addEventListener('click', function() {
+                document.querySelectorAll('.directory-tree li').forEach(item => item.classList.remove('active'));
+                this.classList.add('active');
+                currentPath = "";
+                loadFiles("", currentSearch);
+            });
+            treeContainer.appendChild(rootItem);
+            
+            // 添加子目录
+            directories.forEach(dir => {
+                const dirItem = document.createElement('li');
+                dirItem.textContent = `${dir.name} (${dir.file_count})`;
+                dirItem.addEventListener('click', function() {
+                    document.querySelectorAll('.directory-tree li').forEach(item => item.classList.remove('active'));
+                    this.classList.add('active');
+                    loadFiles(dir.path, currentSearch);
+                });
+                treeContainer.appendChild(dirItem);
+            });
+        }
+
+        // 渲染文件列表
+        function renderFileList(files) {
+            const container = document.getElementById('fileListContainer');
+            container.innerHTML = '';
+            
+            if (files.length === 0) {
+                container.innerHTML = '<p>当前目录没有文件</p>';
+                return;
+            }
+            
+            // 筛选出文件（排除目录）
+            const fileItems = files.filter(file => !file.is_directory);
+            
+            if (fileItems.length === 0) {
+                container.innerHTML = '<p>当前目录没有可打印的文件</p>';
+                return;
+            }
+            
+            fileItems.forEach(file => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                if (selectedFiles.some(f => f.path === file.path && f.name === file.name)) {
+                    fileItem.classList.add('selected');
+                }
+                
+                fileItem.innerHTML = `
+                    <input type="checkbox" class="file-checkbox" data-path="${file.path}" data-name="${file.name}" ${selectedFiles.some(f => f.path === file.path && f.name === file.name) ? 'checked' : ''}>
+                    <div class="file-icon">${getFileIcon(file.name)}</div>
+                    <div class="file-details">
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-meta">
+                            <span>大小: ${file.size}</span>
+                            <span>页数: ${file.pages}</span>
+                            ${file.last_printed ? `<span class="last-printed">上次打印: ${formatDate(file.last_printed)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="file-actions">
+                        ${file.printed ? '<span class="printed-badge">已打印</span>' : ''}
+                        <button class="print-btn" data-path="${file.path}" data-name="${file.name}">打印</button>
+                    </div>
+                `;
+                
+                container.appendChild(fileItem);
+            });
+            
+            // 添加事件监听器
+            document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', handleFileSelection);
+            });
+            
+            document.querySelectorAll('.print-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const filePath = this.getAttribute('data-path');
+                    const fileName = this.getAttribute('data-name');
+                    showPrintOptions([{path: filePath, name: fileName}]);
+                });
+            });
+            
+            // 移动设备长按选择
+            if (window.innerWidth <= 768) {
+                document.querySelectorAll('.file-item').forEach(item => {
+                    let pressTimer;
+                    
+                    item.addEventListener('touchstart', function(e) {
+                        pressTimer = setTimeout(() => {
+                            const checkbox = this.querySelector('.file-checkbox');
+                            checkbox.checked = !checkbox.checked;
+                            handleFileSelection.call(checkbox);
+                            e.preventDefault();
+                        }, 500);
+                    });
+                    
+                    item.addEventListener('touchend', function() {
+                        clearTimeout(pressTimer);
+                    });
+                    
+                    item.addEventListener('touchmove', function() {
+                        clearTimeout(pressTimer);
+                    });
+                });
+            }
+        }
+
+        // 获取文件图标
+        function getFileIcon(fileName) {
+            const ext = fileName.split('.').pop().toLowerCase();
+            if (['pdf'].includes(ext)) return '📄';
+            if (['doc', 'docx'].includes(ext)) return '📝';
+            if (['xls', 'xlsx'].includes(ext)) return '📊';
+            if (['ppt', 'pptx'].includes(ext)) return '📑';
+            if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return '🖼️';
+            return '📄';
+        }
+
+        // 格式化日期
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('zh-CN') + ' ' + date.toLocaleTimeString('zh-CN', {hour: '2-digit', minute: '2-digit'});
+        }
+
+        // 处理文件选择
+        function handleFileSelection() {
+            const filePath = this.getAttribute('data-path');
+            const fileName = this.getAttribute('data-name');
+            const file = {path: filePath, name: fileName};
+            
+            if (this.checked) {
+                if (!selectedFiles.some(f => f.path === filePath && f.name === fileName)) {
+                    selectedFiles.push(file);
+                }
+            } else {
+                selectedFiles = selectedFiles.filter(f => !(f.path === filePath && f.name === fileName));
+            }
+            
+            updateBatchActions();
+            
+            // 更新UI
+            document.querySelectorAll('.file-item').forEach(item => {
+                const checkbox = item.querySelector('.file-checkbox');
+                const path = checkbox.getAttribute('data-path');
+                const name = checkbox.getAttribute('data-name');
+                
+                if (selectedFiles.some(f => f.path === path && f.name === name)) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        // 更新批量操作界面
+        function updateBatchActions() {
+            const batchActions = document.getElementById('batchActions');
+            const selectedCount = document.getElementById('selectedCount');
+            
+            selectedCount.textContent = `已选择 ${selectedFiles.length} 个文件`;
+            
+            if (selectedFiles.length > 0) {
+                batchActions.classList.add('show');
+            } else {
+                batchActions.classList.remove('show');
+            }
+        }
+
+        // 处理搜索
+        function handleSearch() {
+            currentSearch = document.getElementById('searchInput').value;
+            loadFiles(currentPath, currentSearch);
+        }
+
+        // 显示打印选项
+        function showPrintOptions(files) {
+            selectedFiles = files;
+            document.getElementById('printOptions').classList.add('show');
+        }
+
+        // 隐藏打印选项
+        function hidePrintOptions() {
+            document.getElementById('printOptions').classList.remove('show');
+        }
+
+        // 处理批量打印
+        function handleBatchPrint() {
+            if (selectedFiles.length === 0) {
+                alert('请选择要打印的文件');
+                return;
+            }
+            
+            showPrintOptions(selectedFiles);
+        }
+
+        // 处理打印
+        async function handlePrint() {
+            if (selectedFiles.length === 0) {
+                alert('请选择要打印的文件');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/print', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: selectedFiles.map(file => `${file.path}/${file.name}`),
+                        option: currentPrintOption
+                    })
+                });
+                
+                const result = await response.json();
+                
+                // 显示打印结果
+                let message = "打印结果:\n";
+                let successCount = 0;
+                
+                result.results.forEach(item => {
+                    if (item.status === "success") {
+                        message += `✓ ${item.file}\n`;
+                        successCount++;
+                    } else {
+                        message += `✗ ${item.file}: ${item.message}\n`;
+                    }
+                });
+                
+                alert(message);
+                
+                // 如果打印成功，重新加载文件列表以更新打印状态
+                if (successCount > 0) {
+                    loadFiles(currentPath, currentSearch);
+                    selectedFiles = [];
+                    updateBatchActions();
+                }
+                
+                hidePrintOptions();
+            } catch (error) {
+                console.error('打印请求失败:', error);
+                alert('打印请求失败，请检查后端服务');
+            }
+        }
+    </script>
+</body>
+</html>
