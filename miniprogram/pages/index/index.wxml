@@ -4,7 +4,7 @@
   <view class="card server-card">
     <view class="server-info-row">
       <view class="server-icon-wrap">
-        <text class="server-icon">🖨️</text>
+        <image class="server-logo-img" src="/images/logo.png" mode="aspectFit"></image>
       </view>
       <view class="server-details">
         <view class="server-url-title">{{serverUrl}}</view>
