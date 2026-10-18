@@ -218,10 +218,14 @@ def api_upload():
     if not file or file.filename == '':
         return jsonify({'success': False, 'message': '文件名为空'}), 400
 
-    raw_name = file.filename
+    # 优先获取客户端真实文件名（微信小程序上传时会将本地临时文件命名为 tmp_xxx）
+    client_name = request.form.get('original_filename') or request.form.get('filename')
+    raw_name = client_name.strip() if client_name else file.filename
+    from services.conversion import EncodingHandler
+    safe_name = EncodingHandler.safe_filename(os.path.basename(raw_name))
+    
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    base_name = os.path.basename(raw_name)
-    save_filename = f"{timestamp}_{base_name}"
+    save_filename = f"{timestamp}_{safe_name}"
     save_path = os.path.join(DEFAULT_WATCH_DIR, save_filename)
 
     try:
@@ -336,10 +340,13 @@ def api_archive_inspect():
     if not file or not file.filename:
         return jsonify({'success': False, 'message': '文件名为空'}), 400
 
-    raw_name = file.filename
+    client_name = request.form.get('original_filename') or request.form.get('filename')
+    raw_name = client_name.strip() if client_name else file.filename
+    from services.conversion import EncodingHandler
+    safe_name = EncodingHandler.safe_filename(os.path.basename(raw_name))
+    
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    base_name = os.path.basename(raw_name)
-    save_filename = f"{timestamp}_{base_name}"
+    save_filename = f"{timestamp}_{safe_name}"
     save_path = os.path.join(DEFAULT_WATCH_DIR, save_filename)
 
     try:
@@ -499,9 +506,13 @@ def api_history():
         active_queue = print_service.get_print_queue()
         for j in active_queue:
             if j.get('status') == 'printing':
+                fname = j.get('filename', '未知文件')
+                if fname.startswith('tmp_'):
+                    ext = os.path.splitext(fname)[1]
+                    fname = f"微信文档{ext}" if ext else "微信文档"
                 res.append({
                     'id': j.get('id'),
-                    'filename': j.get('filename', '未知文件'),
+                    'filename': fname,
                     'filepath': j.get('filepath', ''),
                     'print_time': str(j.get('added_time', '')),
                     'pages': j.get('pages', 1),
@@ -518,6 +529,9 @@ def api_history():
     for i in history:
         raw_name = i[1]
         clean_name = re.sub(r'^\d{8}[_]?\d{4,6}_', '', raw_name)
+        if clean_name.startswith('tmp_'):
+            ext = os.path.splitext(clean_name)[1]
+            clean_name = f"微信文档{ext}" if ext else "微信文档"
         pages = i[4] if i[4] and i[4] > 0 else 1
         res.append({
             'id': i[0],

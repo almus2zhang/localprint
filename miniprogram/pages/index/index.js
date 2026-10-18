@@ -427,6 +427,7 @@ Page({
             filePath: fileItem.path,
             name: 'file',
             formData: {
+              original_filename: fileItem.name,
               auto_print: 'true',
               print_type: fileItem.printType,
               copies: String(fileItem.copies),
@@ -484,6 +485,9 @@ Page({
       url: `${url}/api/archive/inspect`,
       filePath: filePath,
       name: 'file',
+      formData: {
+        original_filename: fileName
+      },
       success: (uploadRes) => {
         wx.hideLoading();
         try {
