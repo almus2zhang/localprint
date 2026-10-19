@@ -140,29 +140,66 @@ CUPS 默认仅允许本机访问，需开启局域网远程管理权限：
 # 1. 将当前用户加入 lpadmin 打印管理员组
 sudo usermod -aG lpadmin $USER
 
-# 2. 开启远程访问与局域网打印机共享
-sudo cupsctl --remote-admin --remote-any --share-printers
+### 第二步：添加打印机并设为默认
 
-# 3. 重启 CUPS 服务
-sudo systemctl restart cups
+推荐使用**方法 A（纯终端命令行添加，无需开放 Web 端口，最安全快捷）**；也可以使用**方法 B（Web 界面添加）**。
+
+#### 💡 方法 A：Linux 纯终端命令行添加打印机（推荐）
+
+使用 `lpadmin` 与 `lpinfo` 工具，在 SSH 终端中 1 分钟内即可完成添加：
+
+```bash
+# 1. 扫描检测连接的打印机设备 URI（支持 USB 与网络打印机）
+sudo lpinfo -v | grep -E 'usb|socket|ipp'
+# 输出示例：
+# direct usb://EPSON/L6260%20Series?serial=583... (USB 打印机)
+# network socket://192.168.10.200:9100 (网络打印机)
+# network ipp://192.168.10.200/ipp/print (AirPrint / 局域网网络打印机)
+
+# 2. 查找可用的打印机驱动（以 Epson 或 HP 为例）
+lpinfo -m | grep -i "l6260"
+# 输出示例驱动名：gutenprint.5.3://epson-l6260/expert
+
+# 3. 使用 lpadmin 添加打印机（-p 打印机名，-E 立即启用，-v 设备URI，-m 驱动名）
+# 示例 1：添加网络打印机（如果打印机支持免驱标准 IPP，直接使用 -m everywhere 最方便）
+sudo lpadmin -p MyPrinter -E -v "socket://192.168.10.200:9100" -m everywhere
+
+# 示例 2：添加 USB 打印机并指定驱动
+sudo lpadmin -p MyPrinter -E -v "usb://EPSON/L6260%20Series?serial=583..." -m gutenprint.5.3://epson-l6260/expert
+
+# 4. 设为系统全局默认打印机（极关键，LocalPrint 默认会向该打印机派发任务）
+sudo lpadmin -d MyPrinter
+
+# 5. 查看打印机当前状态，确认就绪
+lpstat -p -d
 ```
 
-### 第三步：在 Web 界面添加打印机并设为默认
-1. 在同一局域网的电脑浏览器中打开：
-   ```text
-   https://<服务器局域网IP>:631
-   ```
-   *(例如 `https://192.168.10.66:631`，浏览器提示自签名证书不安全时，点击“高级” -> “继续访问”)*。
-2. 点击顶部导航栏的 **Administration** -> 点击 **Add Printer**（会弹出认证窗口，输入服务器的 Linux 用户名与密码）。
-3. **选择打印机连接方式**：
-   - 如果是 USB 打印机：直接选择列表中识别出的 Local USB Printer；
-   - 如果是网络打印机：选择 `AppSocket/HP JetDirect` 或 `Internet Printing Protocol (ipp/http)`，输入网络打印机 IP（例如 `socket://192.168.10.200:9100` 或 `ipp://192.168.10.200/ipp/print`）。
-4. **选择打印机驱动**：选择对应的品牌（如 Epson、HP、Canon）和型号；若无完全一致型号，可优先选择带 `Gutenprint` 的推荐驱动或 `Generic PCL/PostScript` 驱动。
-5. **设为系统默认打印机（极关键）**：
-   - 添加成功后进入该打印机页面；
-   - 点击 **Administration** 下拉菜单，选择 **Set As Server Default**（设为系统默认打印机）。
+---
 
-### 第四步：打印测试页与命令行验证（关键步骤）
+#### 🌐 方法 B：Web 图形化界面添加（可选）
+
+如果您更习惯在浏览器中点选添加：
+
+1. **临时开启 Web 远程访问**：
+   ```bash
+   sudo usermod -aG lpadmin $USER
+   sudo cupsctl --remote-admin --remote-any --share-printers
+   sudo systemctl restart cups
+   ```
+2. **在浏览器中添加**：
+   - 访问 `https://<服务器局域网IP>:631` -> 点击 **Administration** -> **Add Printer**；
+   - 选择扫描出的 USB 或网络打印机 -> 选择对应驱动 -> 勾选 Share Printer；
+   - 添加完成后，在打印机页面点击 **Administration** 下拉框 -> 选择 **Set As Server Default** 设为默认。
+3. **配置完成后关闭远程端口（改回 0，保障安全）**：
+   打印机添加完毕后，建议立即关闭 CUPS 远程开放端口（LocalPrint 本地进程依然可以完美正常打印）：
+   ```bash
+   sudo cupsctl --no-remote-admin --no-remote-any --no-share-printers
+   sudo systemctl restart cups
+   ```
+
+---
+
+### 第三步：打印测试页与命令行验证（关键步骤）
 
 在接入 LocalPrint 业务系统前，请按以下两种方式验证物理出纸是否成功：
 
