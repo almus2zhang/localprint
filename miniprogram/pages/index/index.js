@@ -800,10 +800,10 @@ Page({
           title = `昨天 (${datePart})`;
         }
 
-        // 今天默认展开(collapsed: false)，其他日期默认折叠(collapsed: true)
+        // 默认全部展开(collapsed: false)，避免用户误以为历史记录丢失；用户可自行点击分组折叠/收起
         // 若之前已有该分组状态则保留用户手动点击状态
         const existingGroup = (this.data.dateGroups || []).find(g => g.dateKey === datePart);
-        const collapsed = existingGroup ? existingGroup.collapsed : !isToday;
+        const collapsed = existingGroup ? existingGroup.collapsed : false;
 
         const newGroup = {
           dateKey: datePart,

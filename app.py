@@ -543,28 +543,30 @@ def api_reprint():
 def api_history():
     import re
     res = []
-    seen_files = set()
 
-    # 1. 如果 CUPS 当前有正在打印的任务，先插入到最顶部
+    # 1. 获取 CUPS 当前正在打印的任务
+    active_printing = []
     try:
         active_queue = print_service.get_print_queue()
         for j in active_queue:
             if j.get('status') == 'printing':
                 fname = j.get('filename', '未知文件')
-                if fname.startswith('tmp_'):
-                    ext = os.path.splitext(fname)[1]
-                    fname = f"微信文档{ext}" if ext else "微信文档"
-                res.append({
+                clean_name = re.sub(r'^\d{8}[_]?\d{4,6}_', '', fname)
+                if clean_name.startswith('tmp_'):
+                    ext = os.path.splitext(clean_name)[1]
+                    clean_name = f"微信文档{ext}" if ext else "微信文档"
+                active_printing.append({
                     'id': j.get('id'),
-                    'filename': fname,
+                    'filename': clean_name,
+                    'raw_filename': fname,
                     'filepath': j.get('filepath', ''),
-                    'print_time': str(j.get('added_time', '')),
+                    'print_time': str(j.get('added_time', ''))[:19],
                     'pages': j.get('pages', 1),
                     'print_type': j.get('print_type', 'two-sided-long-edge'),
                     'status': 'printing',
-                    'error_message': ''
+                    'error_message': '',
+                    'matched': False
                 })
-                seen_files.add(j.get('filename'))
     except Exception as e:
         logging.error(f"获取实时打印任务异常: {e}")
 
@@ -572,21 +574,46 @@ def api_history():
     history = db_manager.get_print_history(100)
     for i in history:
         raw_name = i[1]
+        filepath = i[2] or ''
         clean_name = re.sub(r'^\d{8}[_]?\d{4,6}_', '', raw_name)
         if clean_name.startswith('tmp_'):
             ext = os.path.splitext(clean_name)[1]
             clean_name = f"微信文档{ext}" if ext else "微信文档"
         pages = i[4] if i[4] and i[4] > 0 else 1
+        status = i[6] or 'completed'
+
+        # 匹配 CUPS 中是否正好正在打印此任务（仅匹配最近的一条记录）
+        for act in active_printing:
+            if not act['matched']:
+                if (act['filepath'] and act['filepath'] == filepath) or (act['filename'] == clean_name) or (act['raw_filename'] == raw_name):
+                    status = 'printing'
+                    act['matched'] = True
+                    break
+
         res.append({
             'id': i[0],
             'filename': clean_name,
-            'filepath': i[2],
+            'filepath': filepath,
             'print_time': str(i[3])[:19] if i[3] else '',
             'pages': pages,
             'print_type': i[5],
-            'status': i[6] or 'completed',
+            'status': status,
             'error_message': i[8] or ''
         })
+
+    # 3. 如果有正在打印的任务未能在数据库中匹配到（例如外部直接发给CUPS的任务），补在最顶部
+    for act in reversed(active_printing):
+        if not act['matched']:
+            res.insert(0, {
+                'id': act['id'],
+                'filename': act['filename'],
+                'filepath': act['filepath'],
+                'print_time': act['print_time'],
+                'pages': act['pages'],
+                'print_type': act['print_type'],
+                'status': 'printing',
+                'error_message': ''
+            })
 
     return jsonify(res)
 
