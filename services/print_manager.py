@@ -29,17 +29,16 @@ class PrintService:
         }
 
     def get_print_queue(self):
-        """获取打印队列 - 返回包含真实文档名与页数的结构"""
+        """获取打印队列 - 仅返回当前正在打印或排队等待的真实作业"""
         import re
         combined_queue = []
         seen_job_ids = set()
 
         try:
-            # 1. 首先从CUPS获取当前实时打印作业
-            cups_jobs = []
+            # 1. 首先从CUPS获取当前实时打印作业 (真正正在打印或排队中的任务)
             try:
                 cmd = ['lpstat', '-o']
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                result = subprocess.run(cmd, capture_output=True, text=True)
                 
                 if result.returncode == 0 and result.stdout.strip():
                     for line in result.stdout.strip().split('\n'):
@@ -60,61 +59,58 @@ class PrintService:
                                 print_type = cached.get('print_type', 'two-sided-long-edge')
                                 time_str = cached.get('added_time', datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
                             else:
-                                # 尝试从数据库历史中找最近匹配
-                                recent = self.db_manager.get_print_history(1)
-                                if recent and len(recent) > 0:
-                                    filename = recent[0][1]
-                                    pages = recent[0][4] or 1
-                                    filepath = recent[0][2]
-                                    print_type = recent[0][5]
-                                    time_str = str(recent[0][3])
-                                else:
-                                    # 降级：去除打印机前缀，如 EPSON_L6260_Series-123 -> 任务#123
-                                    clean_id = re.sub(r'^[A-Za-z0-9_-]+-(\d+)$', r'打印任务 #\1', job_id)
-                                    filename = clean_id
-                                    pages = 1
-                                    filepath = ''
-                                    print_type = 'two-sided-long-edge'
-                                    time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                clean_id = re.sub(r'^[A-Za-z0-9_-]+-(\d+)$', r'打印任务 #\1', job_id)
+                                filename = clean_id
+                                pages = 1
+                                filepath = ''
+                                print_type = 'two-sided-long-edge'
+                                time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
-                            cups_jobs.append({
+                            clean_name = re.sub(r'^\d{8}[_]?\d{4,6}_', '', filename)
+                            if clean_name.startswith('tmp_'):
+                                ext = os.path.splitext(clean_name)[1]
+                                clean_name = f"微信文档{ext}" if ext else "微信文档"
+
+                            combined_queue.append({
                                 'id': job_id,
-                                'filename': filename,
+                                'filename': clean_name,
                                 'pages': pages,
                                 'filepath': filepath,
                                 'print_type': print_type,
                                 'added_time': time_str,
                                 'status': 'printing'
                             })
-            except subprocess.CalledProcessError as e:
-                if "No entries" not in e.stderr and "no entries" not in e.stderr:
-                    logging.error(f"获取CUPS打印队列时出错: {e.stderr}")
             except Exception as e:
                 logging.error(f"获取CUPS打印队列异常: {str(e)}")
 
-            combined_queue.extend(cups_jobs)
+            # 2. 从数据库获取处于 pending 等待状态的任务（如果有）
+            try:
+                pending_db_jobs = self.db_manager.get_pending_print_queue()
+                for rec in pending_db_jobs:
+                    # rec: (id, filename, filepath, print_type, added_time, status)
+                    rec_filename = re.sub(r'^\d{8}[_]?\d{4,6}_', '', rec[1])
+                    if rec_filename.startswith('tmp_'):
+                        ext = os.path.splitext(rec_filename)[1]
+                        rec_filename = f"微信文档{ext}" if ext else "微信文档"
+                    if not any(j['filename'] == rec_filename for j in combined_queue):
+                        combined_queue.append({
+                            'id': str(rec[0]),
+                            'filename': rec_filename,
+                            'pages': 1,
+                            'filepath': rec[2],
+                            'print_type': rec[3],
+                            'added_time': str(rec[4])[:19] if rec[4] else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            'status': 'pending'
+                        })
+            except Exception as e:
+                logging.error(f"获取数据库等待队列异常: {e}")
 
-            # 2. 如果正在打印的作业较少，从数据库补充最近打印记录（让用户知道刚打完的任务及页数）
-            recent_history = self.db_manager.get_print_history(5)
-            for rec in recent_history:
-                # rec: (id, filename, filepath, print_time, pages, print_type, status, print_command, error_message)
-                rec_id = f"hist_{rec[0]}"
-                rec_filename = re.sub(r'^\d{8}[_]?\d{4,6}_', '', rec[1])
-                rec_pages = rec[4] if rec[4] and rec[4] > 0 else 1
-                rec_status = rec[6] or 'completed'
-                # 避免与当前 CUPS 里的重复
-                if not any(j['filename'] == rec_filename and j['status'] == 'printing' for j in combined_queue):
-                    combined_queue.append({
-                        'id': rec_id,
-                        'filename': rec_filename,
-                        'pages': rec_pages,
-                        'filepath': rec[2],
-                        'print_type': rec[5],
-                        'added_time': str(rec[3])[:19] if rec[3] else datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                        'status': 'completed' if rec_status == 'success' else rec_status
-                    })
+            # 清理缓存中已不在 CUPS 队列里的过期任务
+            for cached_id in list(self.JOB_INFO_CACHE.keys()):
+                if cached_id not in seen_job_ids:
+                    del self.JOB_INFO_CACHE[cached_id]
 
-            return combined_queue[:6]
+            return combined_queue
             
         except Exception as e:
             logging.error(f"获取打印队列时发生错误: {str(e)}")
@@ -123,26 +119,23 @@ class PrintService:
     def cancel_all_print_jobs(self):
         """取消所有打印作业"""
         try:
-            cancelled_count = 0
-            
-            # 取消CUPS中的打印作业
+            # 取消CUPS中的所有打印作业
             try:
-                cmd = ['cancel', '-a']  # 取消所有作业
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                logging.info("已取消所有CUPS打印作业")
-                cancelled_count += 1  # 即使不知道具体数量，也认为至少取消了一个
-            except subprocess.CalledProcessError as e:
-                if "No jobs" in e.stderr or "no jobs" in e.stderr:
-                    logging.info("CUPS中没有打印作业可取消")
-                else:
-                    logging.error(f"取消CUPS打印作业时出错: {e.stderr}")
+                cmd = ['cancel', '-a', '-x']
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode != 0:
+                    subprocess.run(['cancel', '-a'], capture_output=True, text=True)
+                logging.info("已发送取消所有CUPS打印作业指令")
             except Exception as e:
                 logging.error(f"取消CUPS打印作业时发生错误: {str(e)}")
             
+            # 清空缓存
+            self.JOB_INFO_CACHE.clear()
+
             # 更新数据库中的打印队列状态
             updated_count = self.db_manager.update_queue_status_bulk('cancelled', 'pending')
             
-            return True, f"已取消所有打印作业，更新了 {updated_count} 条队列记录"
+            return True, f"已取消所有打印作业"
             
         except Exception as e:
             error_msg = f"取消打印作业时发生错误: {str(e)}"
@@ -151,28 +144,50 @@ class PrintService:
 
     def cancel_print_job(self, job_id):
         """取消单个打印作业"""
+        import re
         try:
-            # 尝试取消CUPS作业
+            job_id_str = str(job_id).strip()
+            cups_cancelled = False
+
+            # 1. 尝试通过 CUPS 命令取消作业
             try:
-                cmd = ['cancel', str(job_id)]
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                logging.info(f"已取消CUPS打印作业: {job_id}")
-            except subprocess.CalledProcessError as e:
-                # 如果CUPS中没有该作业，可能是数据库中的作业
-                if "No such" in e.stderr or "not found" in e.stderr:
-                    logging.info(f"CUPS中没有作业 {job_id}，尝试更新数据库状态")
+                cmd = ['cancel', job_id_str]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+                if result.returncode == 0:
+                    cups_cancelled = True
+                    logging.info(f"已成功通过CUPS取消打印作业: {job_id_str}")
                 else:
-                    logging.error(f"取消CUPS作业 {job_id} 失败: {e.stderr}")
+                    # 尝试提取结尾纯数字重试 (如 EPSON_L6260_Series-123 -> 123)
+                    num_match = re.search(r'\d+$', job_id_str)
+                    if num_match:
+                        res2 = subprocess.run(['cancel', num_match.group()], capture_output=True, text=True)
+                        if res2.returncode == 0:
+                            cups_cancelled = True
+                            logging.info(f"已通过数字ID取消CUPS作业: {num_match.group()}")
             except Exception as e:
-                logging.error(f"取消CUPS作业 {job_id} 时发生错误: {str(e)}")
-            
-            # 更新数据库中的对应记录状态
-            updated_count = self.db_manager.update_queue_status_by_id_or_file('cancelled', job_id)
-            
-            if updated_count > 0:
-                return True, f"已取消打印作业 {job_id}"
-            else:
-                return False, f"未找到作业 {job_id}"
+                logging.error(f"执行 cancel 命令异常: {e}")
+
+            # 2. 从内存缓存中删除
+            if job_id_str in self.JOB_INFO_CACHE:
+                del self.JOB_INFO_CACHE[job_id_str]
+
+            # 3. 更新数据库 print_queue 中的对应记录状态
+            updated_count = self.db_manager.update_queue_status_by_id_or_file('cancelled', job_id_str)
+
+            # 4. 如果是历史记录ID (如 hist_12)
+            if job_id_str.startswith('hist_'):
+                hist_id = job_id_str.replace('hist_', '')
+                try:
+                    with self.db_manager.get_connection() as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("UPDATE print_history SET status = 'cancelled' WHERE id = ?", (hist_id,))
+                        if cursor.rowcount > 0:
+                            updated_count += cursor.rowcount
+                            conn.commit()
+                except Exception as e:
+                    logging.error(f"更新历史记录状态失败: {e}")
+
+            return True, f"已成功取消打印作业 {job_id_str}"
             
         except Exception as e:
             error_msg = f"取消打印作业时发生错误: {str(e)}"
