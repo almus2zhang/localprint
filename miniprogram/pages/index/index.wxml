@@ -8,8 +8,8 @@
       </view>
       <view class="server-details">
         <view class="server-url-title">{{serverUrl}}</view>
-        <view class="server-status-line">
-          <text class="status-indicator {{serverConnected ? 'dot-online' : 'dot-offline'}}"></text>
+        <view class="server-status-line {{serverConnected ? 'status-online-box' : 'status-offline-box'}}">
+          <view class="status-indicator {{serverConnected ? 'dot-online' : 'dot-offline'}}"></view>
           <text class="status-text {{serverConnected ? 'text-online' : 'text-offline'}}">
             {{checkingServer ? '正在检测连通性...' : (serverConnected ? '局域网在线可用' : '离线未连通')}}
           </text>
@@ -168,7 +168,7 @@
         <text class="card-title">📜 打印历史</text>
         <text class="history-total-tag" wx:if="{{totalHistoryCount > 0}}">累计 {{totalHistoryCount}} 条</text>
       </view>
-      <text class="refresh-text" bindtap="fetchHistory">🔄 刷新</text>
+      <button class="history-refresh-btn" bindtap="fetchHistory" size="mini">🔄 刷新</button>
     </view>
     
     <block wx:if="{{dateGroups.length > 0}}">
