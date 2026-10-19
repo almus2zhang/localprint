@@ -461,8 +461,9 @@
 <body>
     <div class="container">
         <header>
-            <h1>📄 打印系统</h1>
-            <p>监控目录变化，自动转换为PDF</p>
+            <h1>📄 LocalPrint 打印服务</h1>
+            <p>📁 <code>file/</code> 目录内新增文档会自动转为 PDF 供打印</p>
+            <p style="margin-top: 0.4rem; font-size: 0.95rem; opacity: 0.95;">⚡ <code>file/autofile/</code> 目录内新增文档会自动直接打印</p>
         </header>
 
         <button class="refresh-btn" onclick="refreshData()">🔄 刷新数据</button>
@@ -479,6 +480,10 @@
 
             <!-- 可处理文件 -->
             <div id="filesTab" class="tab-content active">
+                <div style="background: #ebf8ff; border-left: 4px solid #3182ce; padding: 0.75rem 1rem; border-radius: 4px; margin-bottom: 1rem; font-size: 0.9rem; color: #2b6cb0; line-height: 1.5;">
+                    💡 <strong>目录监听规则</strong>：
+                    <code>file/</code> 目录内新增文档会自动转换为 PDF 并在【可打印列表】中供手动打印；如需免操作直接出纸，请将文件放入 <code>file/autofile/</code> 子目录。
+                </div>
                 <div class="batch-actions">
                     <button class="btn btn-batch" onclick="batchPrintSelected('files')">🖨️ 批量打印选中文件</button>
                 </div>
