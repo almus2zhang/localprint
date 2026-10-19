@@ -15,8 +15,9 @@ Page({
     showQqGuideModal: false,
     tempServerUrl: DEFAULT_SERVER_URL,
     
-    // 多文件待打印列表（每个文件包含独立的 printType, copies, pageRanges）
+    // 多文件待打印列表（每个文件包含独立的 printType, copies, pageRanges, pages）
     selectedFiles: [],
+    totalSelectedPages: 0,
     uploading: false,
 
     // 压缩包解析与文件挑选
@@ -168,37 +169,151 @@ Page({
     });
   },
 
-  // --- 多选文件添加辅助方法 ---
-  appendFiles(newFileList) {
+  // 计算待打印清单中的总物理页数
+  updateTotalSelectedPages() {
+    const list = this.data.selectedFiles || [];
+    const total = list.reduce((sum, item) => sum + ((item.pages || 1) * (item.copies || 1)), 0);
+    this.setData({ totalSelectedPages: total });
+  },
+
+  // 本地快速解析 PDF 总页数（读取前 1MB 提取 Page 对象特征）
+  parseLocalPdfPages(filePath) {
+    return new Promise((resolve) => {
+      try {
+        const fs = wx.getFileSystemManager();
+        fs.readFile({
+          filePath: filePath,
+          encoding: 'binary',
+          position: 0,
+          length: 1024 * 1024,
+          success: (res) => {
+            const str = res.data;
+            if (typeof str === 'string') {
+              const m = str.match(/\/Type\s*\/Page[^s]/g);
+              if (m && m.length > 0) {
+                return resolve(m.length);
+              }
+              const countM = str.match(/\/Count\s+(\d+)/);
+              if (countM && countM[1]) {
+                return resolve(parseInt(countM[1], 10));
+              }
+            }
+            resolve(1);
+          },
+          fail: () => resolve(1)
+        });
+      } catch (e) {
+        resolve(1);
+      }
+    });
+  },
+
+  // 异步请求后端精准计算文档（如 Word docx/doc, PPT 等）页数
+  inspectServerPages(fileId, filePath, fileName) {
+    const url = this.data.serverUrl;
+    if (!url) {
+      const list = this.data.selectedFiles.map(item => item.id === fileId ? { ...item, loadingPages: false } : item);
+      this.setData({ selectedFiles: list });
+      return;
+    }
+
+    wx.uploadFile({
+      url: `${url}/api/inspect_pages`,
+      filePath: filePath,
+      name: 'file',
+      formData: {
+        original_filename: fileName
+      },
+      success: (uploadRes) => {
+        try {
+          const res = JSON.parse(uploadRes.data);
+          if (res && res.success && res.pages) {
+            const list = this.data.selectedFiles.map(item => {
+              if (item.id === fileId) {
+                return { ...item, pages: Math.max(1, res.pages), loadingPages: false };
+              }
+              return item;
+            });
+            this.setData({ selectedFiles: list });
+            this.updateTotalSelectedPages();
+            return;
+          }
+        } catch (e) {}
+
+        const list = this.data.selectedFiles.map(item => item.id === fileId ? { ...item, loadingPages: false } : item);
+        this.setData({ selectedFiles: list });
+      },
+      fail: () => {
+        const list = this.data.selectedFiles.map(item => item.id === fileId ? { ...item, loadingPages: false } : item);
+        this.setData({ selectedFiles: list });
+      }
+    });
+  },
+
+  // --- 多选文件添加辅助方法（自动分析页数） ---
+  async appendFiles(newFileList) {
     const currentList = this.data.selectedFiles || [];
     const existingPaths = new Set(currentList.map(f => f.path));
     const addedItems = [];
 
-    newFileList.forEach((f, idx) => {
+    for (let idx = 0; idx < newFileList.length; idx++) {
+      const f = newFileList[idx];
       if (!existingPaths.has(f.path)) {
+        const ext = this.getFileExt(f.name);
+        const isImg = ['jpg', 'jpeg', 'png', 'bmp', 'webp'].includes(ext);
+        const isPdf = ext === 'pdf';
+
+        let pages = 1;
+        let loadingPages = false;
+
+        if (isImg) {
+          pages = 1;
+          loadingPages = false;
+        } else if (isPdf) {
+          // 本地秒级提取 PDF 页数
+          const localPages = await this.parseLocalPdfPages(f.path);
+          pages = localPages || 1;
+          loadingPages = false;
+        } else {
+          // Word / PPT / TXT 等标记为解析中
+          loadingPages = true;
+        }
+
         addedItems.push({
           id: `f_${Date.now()}_${idx}_${Math.random().toString(36).substr(2, 4)}`,
           path: f.path,
           name: f.name,
           sizeText: this.formatFileSize(f.size),
           icon: this.getFileIcon(f.name),
+          pages: pages,
+          loadingPages: loadingPages,
           // 每个文档独立的初始打印参数
           printType: 'two-sided-long-edge',
           copies: 1,
           pageRanges: ''
         });
       }
-    });
+    }
 
     if (addedItems.length === 0) {
       wx.showToast({ title: '所选文件已在清单中', icon: 'none' });
       return;
     }
 
+    const updatedList = [...currentList, ...addedItems];
     this.setData({
-      selectedFiles: [...currentList, ...addedItems]
+      selectedFiles: updatedList
     });
+    this.updateTotalSelectedPages();
+
     wx.showToast({ title: `成功添加 ${addedItems.length} 个文档`, icon: 'success' });
+
+    // 针对需要后台计算页数的文档发起异步查询
+    addedItems.forEach(item => {
+      if (item.loadingPages) {
+        this.inspectServerPages(item.id, item.path, item.name);
+      }
+    });
   },
 
   // --- 微信聊天记录分类选择（支持一次多选高达20个，秒开无卡顿） ---
@@ -348,6 +463,7 @@ Page({
     if (list[index].copies < 99) {
       list[index].copies += 1;
       this.setData({ selectedFiles: list });
+      this.updateTotalSelectedPages();
     }
   },
 
@@ -358,6 +474,7 @@ Page({
     if (list[index].copies > 1) {
       list[index].copies -= 1;
       this.setData({ selectedFiles: list });
+      this.updateTotalSelectedPages();
     }
   },
 
@@ -376,6 +493,7 @@ Page({
     const list = this.data.selectedFiles;
     list.splice(index, 1);
     this.setData({ selectedFiles: list });
+    this.updateTotalSelectedPages();
   },
 
   // 清空所有待打印文件
@@ -385,7 +503,7 @@ Page({
       content: '确定要清空已选择的所有待打印文档吗？',
       success: (res) => {
         if (res.confirm) {
-          this.setData({ selectedFiles: [] });
+          this.setData({ selectedFiles: [], totalSelectedPages: 0 });
         }
       }
     });
@@ -470,7 +588,7 @@ Page({
       content: msg,
       showCancel: false,
       success: () => {
-        this.setData({ selectedFiles: [] });
+        this.setData({ selectedFiles: [], totalSelectedPages: 0 });
         this.fetchHistory();
       }
     });

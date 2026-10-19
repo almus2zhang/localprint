@@ -295,16 +295,22 @@ class FileHandler(FileSystemEventHandler):
         return file_ext in CONVERTIBLE_EXTENSIONS or file_ext in {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif'}
 
     def _get_document_page_count(self, file_path):
-        """计算文档页数（支持 PDF 与图片）"""
+        """计算文档页数（支持 PDF、图片、Word docx、PowerPoint pptx 及文本）"""
         try:
+            if not os.path.exists(file_path):
+                return 1
             ext = Path(file_path).suffix.lower()
+
+            # 1. 图片格式永远按 1 页计算
             if ext in {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}:
                 return 1
-            if ext == '.pdf' and os.path.exists(file_path):
+
+            # 2. PDF 格式：使用 pypdf 与底层正则双重提取
+            if ext == '.pdf':
                 try:
                     import pypdf
                     reader = pypdf.PdfReader(file_path)
-                    return len(reader.pages)
+                    return max(1, len(reader.pages))
                 except Exception:
                     pass
                 try:
@@ -313,11 +319,54 @@ class FileHandler(FileSystemEventHandler):
                         content = f.read()
                         matches = re.findall(rb"/Type\s*/Page[^s]", content)
                         if matches:
-                            return len(matches)
+                            return max(1, len(matches))
+                        count_m = re.findall(rb"/Count\s+(\d+)", content)
+                        if count_m:
+                            return max(1, max(int(c) for c in count_m))
                 except Exception:
                     pass
+                return 1
+
+            # 3. Word 文档 (.docx)
+            if ext == '.docx':
+                try:
+                    import zipfile
+                    import re
+                    with zipfile.ZipFile(file_path, 'r') as zf:
+                        if 'docProps/app.xml' in zf.namelist():
+                            xml_content = zf.read('docProps/app.xml').decode('utf-8', errors='ignore')
+                            m = re.search(r'<Pages>(\d+)</Pages>', xml_content)
+                            if m:
+                                return max(1, int(m.group(1)))
+                except Exception:
+                    pass
+
+            # 4. 演示文稿 (.pptx)
+            if ext == '.pptx':
+                try:
+                    import zipfile
+                    import re
+                    with zipfile.ZipFile(file_path, 'r') as zf:
+                        if 'docProps/app.xml' in zf.namelist():
+                            xml_content = zf.read('docProps/app.xml').decode('utf-8', errors='ignore')
+                            m = re.search(r'<Slides>(\d+)</Slides>', xml_content)
+                            if m:
+                                return max(1, int(m.group(1)))
+                except Exception:
+                    pass
+
+            # 5. 纯文本或数据表 (.txt, .csv)
+            if ext in {'.txt', '.csv'}:
+                try:
+                    with open(file_path, 'rb') as f:
+                        line_count = sum(1 for _ in f)
+                        return max(1, (line_count + 44) // 45)
+                except Exception:
+                    pass
+
         except Exception as e:
-            logging.warning(f"获取文档页数异常: {e}")
+            logging.warning(f"获取文档页数异常 [{file_path}]: {e}")
+
         return 1
 
     def _print_file(self, file_path, print_type='two-sided-short-edge', page_ranges='', copies=1):

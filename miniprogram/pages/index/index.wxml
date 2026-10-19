@@ -83,7 +83,7 @@
     <view class="list-header-row">
       <view class="list-title-wrap">
         <text class="card-title">🖨️ 待打印清单</text>
-        <text class="list-count-tag">共 {{selectedFiles.length}} 个文档</text>
+        <text class="list-count-tag">共 {{selectedFiles.length}} 个文档 · 累计 {{totalSelectedPages}} 页</text>
       </view>
       <text class="clear-all-text" bindtap="clearAllFiles">清空全部</text>
     </view>
@@ -101,12 +101,17 @@
     <!-- 文档列表（每个文档独立设置参数） -->
     <view class="doc-list">
       <view class="doc-item-card" wx:for="{{selectedFiles}}" wx:key="id">
-        <!-- 文件头部：图标、名称、大小、删除 -->
+        <!-- 文件头部：图标、名称、大小、页数、删除 -->
         <view class="doc-item-header">
           <text class="doc-icon">{{item.icon}}</text>
           <view class="doc-title-meta">
             <text class="doc-filename">{{item.name}}</text>
-            <text class="doc-size">{{item.sizeText}}</text>
+            <view class="doc-meta-subline">
+              <text class="doc-size">{{item.sizeText}}</text>
+              <text class="doc-pages-pill {{item.loadingPages ? 'pages-loading' : ''}}">
+                {{item.loadingPages ? '⏳ 计算页数中...' : ('📃 共 ' + (item.pages || 1) + ' 页' + (item.copies > 1 ? ' (打 ' + (item.pages * item.copies) + ' 张)' : ''))}}
+              </text>
+            </view>
           </view>
           <view class="doc-remove-btn" data-index="{{index}}" bindtap="removeFile">✕</view>
         </view>
@@ -152,7 +157,7 @@
 
     <!-- 提交全部大按钮 -->
     <button class="print-submit-btn" type="primary" loading="{{uploading}}" disabled="{{uploading}}" bindtap="submitAllFilesPrint">
-      {{uploading ? '正在批量提交打印中...' : ('🚀 一键开始打印全部文档 (共 ' + selectedFiles.length + ' 个)')}}
+      {{uploading ? '正在批量提交打印中...' : ('🚀 一键开始打印全部文档 (共 ' + selectedFiles.length + ' 个，' + totalSelectedPages + ' 页)')}}
     </button>
   </view>
 

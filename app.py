@@ -330,6 +330,50 @@ def api_print():
     threading.Thread(target=print_in_background, daemon=True).start()
     return jsonify({'success': True, 'message': '打印任务已提交'})
 
+@app.route('/api/inspect_pages', methods=['POST'])
+def api_inspect_pages():
+    """API: 解析上传文档的总页数"""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '未检测到文件', 'pages': 1}), 400
+    
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'success': False, 'message': '文件名为空', 'pages': 1}), 400
+
+    client_name = request.form.get('original_filename') or request.form.get('filename')
+    raw_name = client_name.strip() if client_name else file.filename
+    from services.conversion import EncodingHandler
+    safe_name = EncodingHandler.safe_filename(os.path.basename(raw_name))
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    save_filename = f"inspect_{timestamp}_{safe_name}"
+    save_path = os.path.join(DEFAULT_WATCH_DIR, save_filename)
+
+    try:
+        file.save(save_path)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'保存失败: {str(e)}', 'pages': 1}), 500
+
+    pages = file_handler._get_document_page_count(save_path)
+    
+    # 若普通 Office 文档未直接解析出页数，尝试快速通过 LibreOffice 转换 PDF 提取精确页数
+    file_ext = os.path.splitext(save_path)[1].lower()
+    if pages == 1 and file_handler._is_convertible_file(save_path) and not file_handler._is_printable_file(save_path):
+        try:
+            pdf_path = conversion_service.convert_to_pdf(save_path)
+            if pdf_path and os.path.exists(pdf_path):
+                file_handler.processed_files.add(pdf_path)
+                pages = file_handler._get_document_page_count(pdf_path)
+        except Exception:
+            pass
+
+    return jsonify({
+        'success': True,
+        'filename': raw_name,
+        'pages': max(1, pages),
+        'file_path': save_path
+    })
+
 @app.route('/api/archive/inspect', methods=['POST'])
 def api_archive_inspect():
     """API: 上传并解压压缩包，返回内部可打印文件列表供小程序挑选"""

@@ -991,11 +991,30 @@
   display: block;
 }
 
+.doc-meta-subline {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 4rpx;
+}
+
 .doc-size {
   font-size: 20rpx;
   color: #9ca3af;
-  margin-top: 2rpx;
-  display: block;
+}
+
+.doc-pages-pill {
+  font-size: 20rpx;
+  color: #0284c7;
+  background: #e0f2fe;
+  padding: 2rpx 12rpx;
+  border-radius: 8rpx;
+  font-weight: 600;
+}
+
+.doc-pages-pill.pages-loading {
+  color: #d97706;
+  background: #fef3c7;
 }
 
 .doc-remove-btn {
