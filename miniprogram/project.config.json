@@ -43,7 +43,7 @@
   },
   "compileType": "miniprogram",
   "libVersion": "2.25.0",
-  "appid": "wx36dd00913c600fca",
+  "appid": "wx8bad7304797dc04d",
   "projectname": "miniprogram-print",
   "condition": {},
   "editorSetting": {
@@ -54,5 +54,6 @@
   "packOptions": {
     "ignore": [],
     "include": []
-  }
+  },
+  "isGameTourist": false
 }
