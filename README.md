@@ -33,21 +33,21 @@
 
 ```mermaid
 flowchart TD
-    subgraph 客户端 [多端客户端]
+    subgraph Clients ["多端客户端"]
         MP["📱 微信小程序客户端 (微信聊天文档/图片/压缩包)"]
         WEB["💻 Web 控制台 (PC 浏览器批量操作)"]
         SAMBA["📁 局域网共享目录 (Samba/NFS/本地文件夹)"]
     end
 
-    subgraph 后端服务 [LocalPrint 后端服务 (Flask + Watchdog)]
+    subgraph Server ["LocalPrint 后端服务 (Flask + Watchdog)"]
         API["RESTful API 接口 (/api/upload, /api/history)"]
         WATCH["Watchdog 目录监听引擎"]
         UNZIP["📦 压缩包智能解压与编码清洗 (GBK/UTF-8)"]
         CONVERT["🔄 LibreOffice Headless 无损转 PDF 引擎"]
-        DB[(SQLite 任务与历史数据库)]
+        DB[("SQLite 任务与历史数据库")]
     end
 
-    subgraph 打印底层 [Linux CUPS 打印系统]
+    subgraph Hardware ["Linux CUPS 打印底层"]
         SPOOL["CUPS Spooler (队列管理 / lp / cancel)"]
         PRINTER["🖨️ 物理网络/USB 打印机 (自动双面/单面出纸)"]
     end
