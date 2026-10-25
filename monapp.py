@@ -1074,6 +1074,8 @@ class FileHandler(FileSystemEventHandler):
             
             # 构建打印命令
             cmd = ['lp']
+            # 强制指定纸张尺寸为 A4，并开启页面自适应
+            cmd.extend(['-o', 'media=A4', '-o', 'fit-to-page'])
             
             # 根据打印类型设置参数
             if print_type == 'one-sided':

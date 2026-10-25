@@ -387,6 +387,9 @@ class FileHandler(FileSystemEventHandler):
             # 指定作业标题为真实文档名
             cmd.extend(['-t', clean_filename])
 
+            # 强制指定纸张尺寸为 A4，并开启页面自适应，防止默认 Letter 导致纸张不符及双面失效
+            cmd.extend(['-o', 'media=A4', '-o', 'fit-to-page'])
+
             if print_type == 'one-sided':
                 cmd.extend(['-o', 'sides=one-sided'])
             elif print_type == 'two-sided-long-edge':

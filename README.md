@@ -223,7 +223,7 @@ lpstat -p -d
 echo "Hello LocalPrint! CUPS is working properly." | lp
 
 # 3. 打印一份本地 PDF 并测试双面长边翻转
-lp -o sides=two-sided-long-edge /path/to/test.pdf
+lp -o media=A4 -o fit-to-page -o sides=two-sided-long-edge /path/to/test.pdf
 
 # 4. 查看当前作业队列
 lpstat -o
