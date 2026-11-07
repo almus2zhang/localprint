@@ -305,14 +305,40 @@ class FileHandler(FileSystemEventHandler):
             if ext in {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp'}:
                 return 1
 
-            # 2. PDF 格式：使用 pypdf 与底层正则双重提取
+            # 2. PDF 格式：按优先级使用 pdfinfo (系统底层，最快最准) -> pikepdf -> pypdf -> 正则兜底
             if ext == '.pdf':
+                # 2.1 首选 pdfinfo (Poppler 工业级工具，100% 准确支持所有版本与压缩流)
+                try:
+                    import subprocess
+                    p_res = subprocess.run(['pdfinfo', file_path], capture_output=True, text=True, timeout=5)
+                    if p_res.returncode == 0:
+                        for line in p_res.stdout.splitlines():
+                            if line.startswith('Pages:'):
+                                p = int(line.split(':')[1].strip())
+                                if p > 0:
+                                    return p
+                except Exception:
+                    pass
+
+                # 2.2 其次使用 pikepdf
+                try:
+                    import pikepdf
+                    with pikepdf.Pdf.open(file_path) as pdf:
+                        if len(pdf.pages) > 0:
+                            return len(pdf.pages)
+                except Exception:
+                    pass
+
+                # 2.3 再次使用 pypdf
                 try:
                     import pypdf
                     reader = pypdf.PdfReader(file_path)
-                    return max(1, len(reader.pages))
+                    if len(reader.pages) > 0:
+                        return len(reader.pages)
                 except Exception:
                     pass
+
+                # 2.4 底层正则备用兜底
                 try:
                     import re
                     with open(file_path, 'rb') as f:

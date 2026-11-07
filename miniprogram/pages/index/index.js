@@ -176,7 +176,7 @@ Page({
     this.setData({ totalSelectedPages: total });
   },
 
-  // 本地快速解析 PDF 总页数（读取前 1MB 提取 Page 对象特征）
+  // 本地快速解析 PDF 总页数（读取前 2MB 提取 Page 特征作为初估占位）
   parseLocalPdfPages(filePath) {
     return new Promise((resolve) => {
       try {
@@ -185,14 +185,24 @@ Page({
           filePath: filePath,
           encoding: 'binary',
           position: 0,
-          length: 1024 * 1024,
+          length: 2 * 1024 * 1024,
           success: (res) => {
             const str = res.data;
             if (typeof str === 'string') {
+              // 优先从 /Type /Pages 节点中提取总页数 /Count
+              const rootPagesMatch = str.match(/\/Type\s*\/Pages\b[^>]*?\/Count\s+(\d+)/) ||
+                                     str.match(/\/Count\s+(\d+)[^>]*?\/Type\s*\/Pages\b/);
+              if (rootPagesMatch && rootPagesMatch[1]) {
+                return resolve(parseInt(rootPagesMatch[1], 10));
+              }
+
+              // 其次尝试统计独立的 /Type /Page 节点（非对象流压缩的 PDF）
               const m = str.match(/\/Type\s*\/Page[^s]/g);
               if (m && m.length > 0) {
                 return resolve(m.length);
               }
+
+              // 兜底正则
               const countM = str.match(/\/Count\s+(\d+)/);
               if (countM && countM[1]) {
                 return resolve(parseInt(countM[1], 10));
@@ -270,10 +280,11 @@ Page({
           pages = 1;
           loadingPages = false;
         } else if (isPdf) {
-          // 本地秒级提取 PDF 页数
+          // 本地初估提取 PDF 页数作为占位
           const localPages = await this.parseLocalPdfPages(f.path);
           pages = localPages || 1;
-          loadingPages = false;
+          // 标记为加载中，触发后台 inspectServerPages 100% 精准核验
+          loadingPages = true;
         } else {
           // Word / PPT / TXT 等标记为解析中
           loadingPages = true;
