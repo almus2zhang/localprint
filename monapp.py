@@ -1079,11 +1079,11 @@ class FileHandler(FileSystemEventHandler):
             
             # 根据打印类型设置参数
             if print_type == 'one-sided':
-                cmd.extend(['-o', 'sides=one-sided'])
+                cmd.extend(['-o', 'sides=one-sided', '-o', 'Duplex=None'])
             elif print_type == 'two-sided-long-edge':
-                cmd.extend(['-o', 'sides=two-sided-long-edge'])
+                cmd.extend(['-o', 'sides=two-sided-long-edge', '-o', 'Duplex=DuplexNoTumble'])
             else:  # two-sided-short-edge
-                cmd.extend(['-o', 'sides=two-sided-short-edge'])
+                cmd.extend(['-o', 'sides=two-sided-short-edge', '-o', 'Duplex=DuplexTumble'])
             
             if file_ext in {'.jpg', '.jpeg', '.png'}:
                 cmd.extend(['-o', 'fit-to-page'])
